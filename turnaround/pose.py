@@ -10,7 +10,27 @@ import math
 
 from PIL import Image, ImageDraw
 
-DIRECTIONS = ("down", "left", "right", "up")
+# Views the model actually draws. Mirrored views are made by flipping these
+# afterwards, which keeps the two sides identical for free.
+MODES = {
+    "4": {
+        "draw": ["down", "right", "up"],
+        "mirror": {"left": "right"},
+        "order": ["down", "left", "right", "up"],
+    },
+    "8": {
+        "draw": ["down", "down_right", "right", "up_right", "up"],
+        "mirror": {"left": "right", "down_left": "down_right", "up_left": "up_right"},
+        "order": ["down", "down_left", "left", "up_left", "up", "up_right", "right", "down_right"],
+    },
+}
+VIEW_WORDS = {
+    "down": "front view",
+    "down_right": "three-quarter front view",
+    "right": "side view facing right",
+    "up_right": "three-quarter back view",
+    "up": "back view",
+}
 
 # 1-based keypoint pairs, same order as the reference implementation.
 LIMBS = [
@@ -35,12 +55,26 @@ _FRONT = [
     (0.43, 0.89), (0.56, 0.63), (0.57, 0.76), (0.57, 0.89), (0.45, 0.24),
     (0.55, 0.24), (0.39, 0.26), (0.61, 0.26),
 ]
-# Facing the left edge: the character's left side is toward the viewer.
-_LEFT = [
-    (0.38, 0.28), (0.50, 0.39), (0.47, 0.41), (0.45, 0.52), (0.44, 0.62),
-    (0.53, 0.41), (0.51, 0.52), (0.50, 0.62), (0.48, 0.63), (0.44, 0.76),
-    (0.43, 0.89), (0.52, 0.63), (0.54, 0.76), (0.56, 0.89), None,
-    (0.42, 0.24), None, (0.53, 0.26),
+# Profile facing the right edge: the character's right side is toward us.
+_RIGHT = [
+    (0.62, 0.28), (0.50, 0.39), (0.47, 0.41), (0.49, 0.52), (0.50, 0.62),
+    (0.53, 0.41), (0.55, 0.52), (0.56, 0.62), (0.48, 0.63), (0.46, 0.76),
+    (0.44, 0.89), (0.52, 0.63), (0.56, 0.76), (0.57, 0.89), (0.58, 0.24),
+    None, (0.47, 0.26), None,
+]
+# Three-quarter front, turned toward the right edge.
+_DOWN_RIGHT = [
+    (0.56, 0.28), (0.50, 0.39), (0.42, 0.41), (0.38, 0.52), (0.37, 0.62),
+    (0.58, 0.41), (0.61, 0.52), (0.62, 0.62), (0.46, 0.63), (0.45, 0.76),
+    (0.45, 0.89), (0.55, 0.63), (0.57, 0.76), (0.58, 0.89), (0.50, 0.24),
+    (0.59, 0.24), (0.42, 0.26), None,
+]
+# Three-quarter back, walking away toward the upper right.
+_UP_RIGHT = [
+    None, (0.50, 0.39), (0.59, 0.41), (0.62, 0.52), (0.63, 0.62),
+    (0.42, 0.41), (0.39, 0.52), (0.38, 0.62), (0.55, 0.63), (0.56, 0.76),
+    (0.57, 0.89), (0.45, 0.63), (0.44, 0.76), (0.43, 0.89), None,
+    None, (0.60, 0.26), (0.43, 0.26),
 ]
 
 
@@ -54,19 +88,16 @@ def _mirror(points):
     return out
 
 
-def keypoints(direction: str):
-    if direction == "down":
-        return list(_FRONT)
-    if direction == "left":
-        return list(_LEFT)
-    if direction == "right":
-        return _mirror(_LEFT)
-    if direction == "up":
+def keypoints(view: str):
+    if view == "up":
         # Seen from behind: sides swap and the face disappears.
         back = _mirror(_FRONT)
         back[0] = back[14] = back[15] = None
         return back
-    raise ValueError(f"unknown direction: {direction}")
+    table = {"down": _FRONT, "right": _RIGHT, "down_right": _DOWN_RIGHT, "up_right": _UP_RIGHT}
+    if view not in table:
+        raise ValueError(f"unknown view: {view}")
+    return list(table[view])
 
 
 def _ellipse(cx, cy, half_len, half_w, angle_deg, steps=24):
@@ -96,11 +127,11 @@ def draw_cell(draw: ImageDraw.ImageDraw, points, x0, w, h, stick=6, dot=6):
             draw.ellipse((p[0] - dot, p[1] - dot, p[0] + dot, p[1] + dot), fill=color)
 
 
-def pose_sheet(width: int, height: int, directions=DIRECTIONS) -> Image.Image:
-    """Black canvas with one skeleton per direction, left to right."""
+def pose_sheet(width: int, height: int, views) -> Image.Image:
+    """Black canvas with one skeleton per view, left to right."""
     img = Image.new("RGB", (width, height), "black")
     draw = ImageDraw.Draw(img)
-    cell = width / len(directions)
-    for i, d in enumerate(directions):
+    cell = width / len(views)
+    for i, d in enumerate(views):
         draw_cell(draw, keypoints(d), i * cell, cell, height)
     return img
