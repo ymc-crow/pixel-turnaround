@@ -46,3 +46,17 @@ def test_snap_to_grid_recovers_fake_pixels():
     big = Image.fromarray(small).resize((240, 160), Image.NEAREST)
     snapped = np.asarray(snap_to_grid(big))
     assert snapped.shape[0] >= 18 and snapped.shape[1] >= 28
+
+
+def test_shared_box_keeps_position_and_palette_is_reused():
+    from turnaround.pixelate import palette_of
+
+    first = to_sprites([_figure(60), _figure(60, top=20)], size=128, shared_box=True)
+    tops = [np.nonzero(np.asarray(s)[..., 3].any(axis=1))[0][0] for s in first]
+    assert tops[1] - tops[0] == 10
+
+    pal = palette_of(first[0])
+    again = to_sprites([_figure(60)], size=128, palette=pal)[0]
+    used = {tuple(c) for c in np.asarray(again)[..., :3][np.asarray(again)[..., 3] > 0]}
+    known = {tuple(c) for c in np.asarray(first[0])[..., :3][np.asarray(first[0])[..., 3] > 0]}
+    assert used <= known
