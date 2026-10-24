@@ -85,7 +85,7 @@ def _shrink(rgb: np.ndarray, alpha: np.ndarray, size: tuple[int, int]):
     a = np.asarray(a, dtype=np.float32) / 255
     channels = []
     for c in range(3):
-        premul = Image.fromarray((rgb[..., c] * alpha).astype(np.float32), mode="F")
+        premul = Image.fromarray((rgb[..., c] * alpha).astype(np.float32))
         channels.append(np.asarray(premul.resize(size, Image.BOX)))
     out = np.stack(channels, axis=2) / np.maximum(a, 1e-6)[..., None]
     return np.clip(out, 0, 255).astype(np.uint8), a >= 0.5

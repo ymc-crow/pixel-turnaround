@@ -1,0 +1,9 @@
+{
+  "frame": 80,
+  "order": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ]
+}
