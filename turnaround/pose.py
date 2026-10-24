@@ -10,11 +10,13 @@ import math
 
 from PIL import Image, ImageDraw
 
-# Views the model actually draws. Mirrored views are made by flipping these
-# afterwards, which keeps the two sides identical for free.
+# Views the model draws. Mirrored views are then replaced by a flipped copy of
+# their partner, which keeps the two sides identical for free.
 MODES = {
     "4": {
-        "draw": ["down", "right", "up"],
+        # The left view is drawn too: four poses on the canvas give steadier
+        # results than three, even though the right view replaces it later.
+        "draw": ["down", "left", "right", "up"],
         "mirror": {"left": "right"},
         "order": ["down", "left", "right", "up"],
     },
@@ -27,6 +29,7 @@ MODES = {
 VIEW_WORDS = {
     "down": "front view",
     "down_right": "three-quarter front view",
+    "left": "side view facing left",
     "right": "side view facing right",
     "up_right": "three-quarter back view",
     "up": "back view",
@@ -94,6 +97,8 @@ def keypoints(view: str):
         back = _mirror(_FRONT)
         back[0] = back[14] = back[15] = None
         return back
+    if view == "left":
+        return _mirror(_RIGHT)
     table = {"down": _FRONT, "right": _RIGHT, "down_right": _DOWN_RIGHT, "up_right": _UP_RIGHT}
     if view not in table:
         raise ValueError(f"unknown view: {view}")

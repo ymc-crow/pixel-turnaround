@@ -20,6 +20,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path) -> Non
     spec = MODES[mode]
     cells = split_cells(snap_to_grid(raw), len(spec["draw"]))
     drawn = dict(zip(spec["draw"], to_sprites(cells, size=size, colors=colors)))
+    # Mirrors win over anything drawn for the same view.
     for view, source in spec["mirror"].items():
         drawn[view] = ImageOps.mirror(drawn[source])
 
