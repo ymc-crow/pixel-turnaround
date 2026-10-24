@@ -24,7 +24,8 @@ def snap_to_grid(img: Image.Image) -> Image.Image:
 
     pixel-art LoRAs draw blocks of roughly 8x8 screen pixels. Taking the median
     of each block's center gives clean single-color pixels instead of the mush
-    a plain resize produces.
+    a plain resize produces. The grid is kept in out.info["grid"] as
+    (px, ox, py, oy) so points on the original image can be mapped later.
     """
     rgb = np.asarray(img.convert("RGB"))
     gray = rgb.mean(axis=2)
@@ -38,7 +39,9 @@ def snap_to_grid(img: Image.Image) -> Image.Image:
         for i, x in enumerate(xs):
             block = rgb[y + iy:y + py - iy, x + ix:x + px - ix].reshape(-1, 3)
             out[j, i] = np.median(block, axis=0)
-    return Image.fromarray(out)
+    snapped = Image.fromarray(out)
+    snapped.info["grid"] = (px, ox, py, oy)
+    return snapped
 
 
 def split_cells(sheet: Image.Image, count: int) -> list[Image.Image]:
@@ -98,15 +101,18 @@ def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
     One scale for all views keeps the character the same height, and one shared
     palette keeps the colors identical between directions. size=0 keeps the
     model's own pixel size and picks the smallest frame that fits.
+
+    Each sprite keeps info["place"] = (scale, x0, y0, left, top): a cell point
+    (x, y) lands on the sprite at ((x - x0) * scale + left, (y - y0) * scale + top).
     """
     cut = []
     for cell in cells:
         rgb = np.asarray(cell.convert("RGB"), dtype=np.float32)
         fg = ~background_mask(cell)
         x0, y0, x1, y1 = _bbox(fg)
-        cut.append((rgb[y0:y1, x0:x1], fg[y0:y1, x0:x1].astype(np.float32)))
+        cut.append((rgb[y0:y1, x0:x1], fg[y0:y1, x0:x1].astype(np.float32), (x0, y0)))
 
-    tallest = max(max(r.shape[0], r.shape[1]) for r, _ in cut)
+    tallest = max(max(r.shape[0], r.shape[1]) for r, _, _ in cut)
     if size <= 0:
         size = -(-(tallest + 2 * margin) // 8) * 8
         scale = 1.0
@@ -114,7 +120,7 @@ def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
         scale = min(1.0, (size - 2 * margin) / tallest)
 
     small = []
-    for rgb, alpha in cut:
+    for rgb, alpha, _ in cut:
         w = max(1, round(rgb.shape[1] * scale))
         h = max(1, round(rgb.shape[0] * scale))
         if scale == 1.0:
@@ -127,14 +133,16 @@ def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
     palette = Image.fromarray(pixels).quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
 
     sprites = []
-    for px, m in small:
+    for (px, m), (_, _, (x0, y0)) in zip(small, cut):
         recolored = Image.fromarray(px).quantize(palette=palette, dither=Image.Dither.NONE)
         rgba = np.asarray(recolored.convert("RGBA")).copy()
         rgba[..., 3] = np.where(m, 255, 0)
         sprite = Image.new("RGBA", (size, size))
         h, w = m.shape
         # Feet on the same line in every frame, centered sideways.
-        sprite.paste(Image.fromarray(rgba), ((size - w) // 2, size - margin - h))
+        left, top = (size - w) // 2, size - margin - h
+        sprite.paste(Image.fromarray(rgba), (left, top))
+        sprite.info["place"] = (scale, x0, y0, left, top)
         sprites.append(sprite)
     return sprites
 

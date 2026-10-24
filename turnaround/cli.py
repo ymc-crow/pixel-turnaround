@@ -10,20 +10,45 @@ from PIL import Image, ImageOps
 
 from .comfy import ComfyClient, turnaround_workflow
 from .pixelate import preview, sheet, snap_to_grid, split_cells, to_sprites
-from .pose import MODES, VIEW_WORDS, pose_sheet
+from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet
 
 # One SDXL-friendly canvas per mode, roughly one megapixel.
 CANVAS = {"4": (1536, 640), "8": (1600, 640)}
 
 
+def _skeleton(view: str, index: int, count: int, raw: Image.Image,
+              snapped: Image.Image, sprite: Image.Image):
+    """Where the pose skeleton the model followed ends up on the final sprite."""
+    px, ox, py, oy = snapped.info["grid"]
+    scale, x0, y0, left, top = sprite.info["place"]
+    cell_w = raw.width / count
+    cell_x = round(index * snapped.width / count)
+    points = []
+    for p in keypoints(view):
+        if p is None:
+            points.append(None)
+            continue
+        gx = (index * cell_w + p[0] * cell_w - ox) / px - cell_x
+        gy = (p[1] * raw.height - oy) / py
+        points.append([round((gx - x0) * scale + left, 1), round((gy - y0) * scale + top, 1)])
+    return points
+
+
 def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
           character: str | None = None) -> None:
     spec = MODES[mode]
-    cells = split_cells(snap_to_grid(raw), len(spec["draw"]))
-    drawn = dict(zip(spec["draw"], to_sprites(cells, size=size, colors=colors)))
+    snapped = snap_to_grid(raw)
+    count = len(spec["draw"])
+    sprites = to_sprites(split_cells(snapped, count), size=size, colors=colors)
+    drawn = dict(zip(spec["draw"], sprites))
+    skeletons = {v: _skeleton(v, i, count, raw, snapped, s)
+                 for i, (v, s) in enumerate(zip(spec["draw"], sprites))}
     # Mirrors win over anything drawn for the same view.
     for view, source in spec["mirror"].items():
         drawn[view] = ImageOps.mirror(drawn[source])
+        w = drawn[source].width
+        skeletons[view] = [None if p is None else [round(w - p[0], 1), p[1]]
+                           for p in skeletons[source]]
 
     frames = [drawn[v] for v in spec["order"]]
     out.mkdir(parents=True, exist_ok=True)
@@ -33,7 +58,8 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
     full = sheet(frames)
     full.save(out / "sheet.png")
     preview(full).save(out / "preview.png")
-    meta = {"frame": frames[0].width, "order": spec["order"], "character": character}
+    meta = {"frame": frames[0].width, "order": spec["order"], "character": character,
+            "skeleton": {v: skeletons[v] for v in spec["order"]}}
     (out / "sheet.json").write_text(json.dumps(meta, indent=2))
 
 
