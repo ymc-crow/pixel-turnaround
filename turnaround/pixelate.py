@@ -92,27 +92,18 @@ def _shrink(rgb: np.ndarray, alpha: np.ndarray, size: tuple[int, int]):
 
 
 def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
-               margin: int = 1, palette: Image.Image | None = None,
-               shared_box: bool = False) -> list[Image.Image]:
+               margin: int = 1) -> list[Image.Image]:
     """Cut out, scale and recolor every cell the same way.
 
     One scale for all views keeps the character the same height, and one shared
     palette keeps the colors identical between directions. size=0 keeps the
     model's own pixel size and picks the smallest frame that fits.
-
-    palette: reuse colors from an earlier sheet instead of picking new ones.
-    shared_box: cut every cell at the same spot, for animation frames, so the
-    character does not jitter when its outline changes between frames.
     """
-    rgbs = [np.asarray(cell.convert("RGB"), dtype=np.float32) for cell in cells]
-    fgs = [~background_mask(cell) for cell in cells]
-    boxes = [_bbox(fg) for fg in fgs]
-    if shared_box:
-        union = (min(b[0] for b in boxes), min(b[1] for b in boxes),
-                 max(b[2] for b in boxes), max(b[3] for b in boxes))
-        boxes = [union] * len(boxes)
     cut = []
-    for rgb, fg, (x0, y0, x1, y1) in zip(rgbs, fgs, boxes):
+    for cell in cells:
+        rgb = np.asarray(cell.convert("RGB"), dtype=np.float32)
+        fg = ~background_mask(cell)
+        x0, y0, x1, y1 = _bbox(fg)
         cut.append((rgb[y0:y1, x0:x1], fg[y0:y1, x0:x1].astype(np.float32)))
 
     tallest = max(max(r.shape[0], r.shape[1]) for r, _ in cut)
@@ -131,11 +122,9 @@ def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
         else:
             small.append(_shrink(rgb, alpha, (w, h)))
 
-    if palette is None:
-        # Build one palette from every opaque pixel of every view.
-        pixels = np.concatenate([px[m] for px, m in small])[None]
-        palette = Image.fromarray(pixels).quantize(
-            colors=colors, method=Image.Quantize.MEDIANCUT)
+    # Build one palette from every opaque pixel of every view.
+    pixels = np.concatenate([px[m] for px, m in small])[None]
+    palette = Image.fromarray(pixels).quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
 
     sprites = []
     for px, m in small:
@@ -148,13 +137,6 @@ def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
         sprite.paste(Image.fromarray(rgba), ((size - w) // 2, size - margin - h))
         sprites.append(sprite)
     return sprites
-
-
-def palette_of(img: Image.Image, colors: int = 256) -> Image.Image:
-    """The colors an existing sprite sheet uses, ready for to_sprites."""
-    rgba = np.asarray(img.convert("RGBA"))
-    pixels = rgba[rgba[..., 3] > 0][:, :3][None]
-    return Image.fromarray(pixels).quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
 
 
 def sheet(sprites: list[Image.Image]) -> Image.Image:
