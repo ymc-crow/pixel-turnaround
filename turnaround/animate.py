@@ -3,9 +3,14 @@
 Motions are made by moving the finished pixels, not by drawing new ones, so
 every frame keeps exactly the look and colors of the standing sprite.
 
-idle: the upper body sinks one pixel (breathing).
-walk: legs step and the body bobs. Side views swing the legs, front and back
-      views lift one foot at a time.
+idle:   the upper body sinks one pixel (breathing).
+walk:   legs step and the body bobs. Side views swing the legs, front and back
+        views lift one foot at a time.
+attack: sword wind-up and swing with a slash trail.
+cast:   magic ring at the feet, a glowing orb grows and flies off.
+death:  white hit flash, knocked back, falls over, lies still.
+
+Attack, cast and death use a 1.5x bigger frame to fit the sword and spells.
 """
 from __future__ import annotations
 
@@ -16,6 +21,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from .actions import ACTIONS
 from .pixelate import preview, sheet
 
 ORDER = ["down", "left", "right", "up"]
@@ -103,22 +109,30 @@ def stack(rows: list[list[Image.Image]]) -> Image.Image:
     return out
 
 
-def save_gif(frames: list[Image.Image], path: Path, ms: int, zoom: int = 6) -> None:
+def save_gif(frames: list[Image.Image], path: Path, ms: int, zoom: int = 6,
+             hold: int | None = None) -> None:
     big = [preview(f, zoom).convert("RGB") for f in frames]
-    big[0].save(path, save_all=True, append_images=big[1:], duration=ms, loop=0)
+    durations = [ms] * len(big)
+    if hold:
+        durations[-1] = hold
+    big[0].save(path, save_all=True, append_images=big[1:], duration=durations, loop=0)
 
 
 MOTIONS = {
     "idle": (lambda d, f: breathe(f), 400),
     "walk": (lambda d, f: walk_side(f) if d in ("left", "right") else walk_front(f), 160),
+    **{name: (lambda d, f, fn=fn: fn(f, d), ms) for name, (fn, ms) in ACTIONS.items()},
 }
+# Last frame of these stays up longer in the preview GIFs.
+HOLD = {"death": 1200}
 
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="pixel-animate", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sheet_dir", type=Path, help="output folder of pixel-turnaround (-d 4)")
-    ap.add_argument("--motions", default="idle,walk", help="comma separated: idle, walk")
+    ap.add_argument("--motions", default=",".join(MOTIONS),
+                    help="comma separated: " + ", ".join(MOTIONS))
     args = ap.parse_args(argv)
 
     src = args.sheet_dir
@@ -137,8 +151,9 @@ def main(argv=None) -> None:
         rows = [make(d, stills[d]) for d in ORDER]
         stack(rows).save(out / f"{name}.png")
         for d, frames in zip(ORDER, rows):
-            save_gif(frames, out / f"{name}_{d}.gif", ms)
-        result["motions"][name] = {"file": f"{name}.png", "frames": len(rows[0]), "ms": ms}
+            save_gif(frames, out / f"{name}_{d}.gif", ms, hold=HOLD.get(name))
+        result["motions"][name] = {"file": f"{name}.png", "frame": rows[0][0].width,
+                                   "frames": len(rows[0]), "ms": ms}
 
     (out / "anim.json").write_text(json.dumps(result, indent=2))
     print(f"done: {out}")

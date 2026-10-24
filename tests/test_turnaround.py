@@ -67,3 +67,18 @@ def test_walk_keeps_colors_and_moves_legs():
         for f in frames:
             assert {tuple(c) for c in np.asarray(f).reshape(-1, 4) if c[3]} <= colors
         assert not np.array_equal(np.asarray(frames[0]), np.asarray(sprite))
+
+
+def test_actions_fit_bigger_frame_and_keep_feet_on_floor():
+    from turnaround.actions import ACTIONS, action_size
+
+    sprite = to_sprites([_figure(60)], size=80)[0]
+    for name, (fn, _) in ACTIONS.items():
+        for direction in ("down", "left", "right", "up"):
+            frames = fn(sprite, direction)
+            assert len(frames) >= 6, name
+            assert all(f.size == (action_size(80),) * 2 for f in frames)
+    lying = ACTIONS["death"][0](sprite, "right")[-2]
+    a = np.asarray(lying)[..., 3] > 0
+    ys, xs = np.nonzero(a)
+    assert np.ptp(xs) > np.ptp(ys)  # lying down: wider than tall
