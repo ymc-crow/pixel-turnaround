@@ -1,0 +1,274 @@
+"""Motions as joint poses, played on the bone rig.
+
+A pose is a dict of bone -> degrees (see Rig.angles for what the numbers
+mean), plus optional "shift" (bone -> pixels), "root" and effect keys that
+render() handles after the body is drawn:
+
+    sword   draw the sword in the right hand
+    trail   slash trail from the sword's previous position
+    orb     (radius, travel) glowing orb between the hands, flying forward
+    ring    magic ring at the feet with this alpha
+    glow    blue tint on the body
+    flash   white hit flash
+    fall    tip the whole body over by this many degrees (clockwise; minus
+            means backward for a profile)
+    bounce  one pixel up, the body bouncing off the floor
+    dark    grayed out (down for good)
+"""
+from __future__ import annotations
+
+import math
+
+from PIL import Image, ImageDraw, ImageOps
+
+from . import effects as fx
+from .rig import Rig
+
+FORWARD = {"right": (1, 0), "down": (0, 1), "up": (0, -1)}
+# Blade angle relative to the forearm, so a hanging arm holds it pointing ahead.
+GRIP = {"right": -110, "down": 25, "up": -25}
+
+
+def canvas_size(frame: int) -> int:
+    """Room for a swung sword or a body lying flat."""
+    return -(-int(frame * 1.5) // 8) * 8
+
+
+def make_rig(still: Image.Image, skeleton, view: str, size: int) -> Rig:
+    dx, dy = (size - still.width) // 2, (size - still.height) // 2
+    canvas = Image.new("RGBA", (size, size))
+    canvas.alpha_composite(still.convert("RGBA"), (dx, dy))
+    moved = [None if p is None else [p[0] + dx, p[1] + dy] for p in skeleton]
+    return Rig(canvas, moved, view)
+
+
+def _side(view: str) -> bool:
+    return view == "right"
+
+
+# --- poses ------------------------------------------------------------------
+
+def idle(view: str) -> list[dict]:
+    breath = [0, 1, 1, 0]
+    arms = [0, 2, 4, 2]
+    return [{"shift": {"torso": (0, b)}, "arm_r": a, "arm_l": a} for b, a in zip(breath, arms)]
+
+
+def walk(view: str) -> list[dict]:
+    poses = []
+    for i in range(8):
+        t = 2 * math.pi * i / 8
+        s, c = math.sin(t), math.cos(t)
+        if _side(view):
+            poses.append({
+                "leg_r": 28 * s, "leg_l": -28 * s,
+                # the knee bends while that leg swings forward
+                "foot_r": -40 * max(0.0, c), "foot_l": -40 * max(0.0, -c),
+                "arm_r": -24 * s, "arm_l": 24 * s, "hand_r": 18, "hand_l": 18,
+                "torso": 4, "head": -2,
+            })
+        else:
+            lift_r, lift_l = max(0.0, s), max(0.0, -s)
+            poses.append({
+                "shift": {"leg_r": (0, -round(2 * lift_r)), "leg_l": (0, -round(2 * lift_l)),
+                          "foot_r": (0, -round(lift_r)), "foot_l": (0, -round(lift_l))},
+                "arm_r": 4 + 8 * lift_l, "arm_l": 4 + 8 * lift_r,
+                "hand_r": 6, "hand_l": 6,
+                "torso": 2 * s, "head": -1.5 * s, "ground": False,
+            })
+    return poses
+
+
+def attack(view: str) -> list[dict]:
+    if _side(view):
+        stance = {"leg_r": 12, "leg_l": -12}
+        keys = [
+            {**stance, "arm_r": 30, "hand_r": 30, "arm_l": 15, "hand_l": 20},
+            {**stance, "torso": -4, "head": -2, "arm_r": 150, "hand_r": 30, "arm_l": -10},
+            {**stance, "torso": -7, "head": -3, "arm_r": 205, "hand_r": 35, "arm_l": -25,
+             "leg_r": 18, "foot_r": -15},
+            {"torso": 6, "arm_r": 120, "hand_r": 10, "arm_l": 20, "leg_r": 30, "foot_r": -5,
+             "leg_l": -25, "foot_l": -20, "trail": True},
+            {"torso": 10, "head": 3, "arm_r": 55, "hand_r": 0, "arm_l": 35, "leg_r": 34,
+             "foot_r": -8, "leg_l": -30, "foot_l": -25, "trail": True},
+            {"torso": 8, "head": 2, "arm_r": 25, "hand_r": -10, "arm_l": 30, "leg_r": 30,
+             "leg_l": -26, "foot_l": -20},
+            {"torso": 3, "arm_r": 30, "hand_r": 20, "arm_l": 20, "leg_r": 20, "leg_l": -15},
+            {**stance, "arm_r": 30, "hand_r": 30, "arm_l": 15, "hand_l": 20},
+        ]
+    else:
+        keys = [
+            {"arm_r": 20, "hand_r": 20},
+            {"arm_r": 120, "hand_r": 20, "torso": -4, "arm_l": 10},
+            {"arm_r": 165, "hand_r": 25, "torso": -7, "head": -3, "arm_l": 18},
+            {"arm_r": 70, "hand_r": 0, "torso": 4, "arm_l": 8, "trail": True},
+            {"arm_r": -35, "hand_r": -20, "torso": 8, "head": 3, "arm_l": 4, "trail": True},
+            {"arm_r": -45, "hand_r": -25, "torso": 6, "head": 2},
+            {"arm_r": -5, "hand_r": 5, "torso": 2},
+            {"arm_r": 20, "hand_r": 20},
+        ]
+    for k in keys:
+        k["sword"] = True
+    return keys
+
+
+def cast(view: str) -> list[dict]:
+    if _side(view):
+        keys = [
+            {},
+            {"arm_r": 40, "arm_l": 35, "hand_r": 20, "hand_l": 20, "torso": -4,
+             "leg_r": 10, "leg_l": -10, "ring": 120},
+            {"arm_r": 150, "arm_l": 140, "hand_r": 10, "hand_l": 10, "torso": -4, "head": -6,
+             "leg_r": 10, "leg_l": -10, "ring": 255, "orb": (2, 0), "glow": 0.06},
+            {"arm_r": 165, "arm_l": 155, "hand_r": 5, "hand_l": 5, "torso": -5, "head": -7,
+             "leg_r": 10, "leg_l": -10, "ring": 255, "orb": (4, 0), "glow": 0.14},
+            {"arm_r": 175, "arm_l": 165, "torso": -5, "head": -7, "leg_r": 10, "leg_l": -10,
+             "ring": 255, "orb": (5, 0), "glow": 0.2},
+            {"arm_r": 90, "arm_l": 85, "torso": 7, "head": 4, "leg_r": 25, "leg_l": -20,
+             "foot_l": -15, "ring": 180, "orb": (4, 14), "glow": 0.08},
+            {"arm_r": 80, "arm_l": 75, "torso": 6, "head": 3, "leg_r": 22, "leg_l": -18,
+             "ring": 90, "orb": (3, 28)},
+            {"arm_r": 30, "arm_l": 25, "torso": 3, "leg_r": 8, "leg_l": -8},
+        ]
+    else:
+        keys = [
+            {},
+            {"arm_r": 30, "arm_l": 30, "ring": 120},
+            {"arm_r": 100, "arm_l": 100, "hand_r": -20, "hand_l": -20, "head": 0,
+             "ring": 255, "orb": (2, 0), "glow": 0.06},
+            {"arm_r": 150, "arm_l": 150, "hand_r": -30, "hand_l": -30,
+             "ring": 255, "orb": (4, 0), "glow": 0.14},
+            {"arm_r": 165, "arm_l": 165, "hand_r": -35, "hand_l": -35,
+             "ring": 255, "orb": (5, 0), "glow": 0.2},
+            {"arm_r": 40, "arm_l": 40, "hand_r": -40, "hand_l": -40,
+             "ring": 180, "orb": (4, 14), "glow": 0.08},
+            {"arm_r": 30, "arm_l": 30, "hand_r": -30, "hand_l": -30, "ring": 90, "orb": (3, 28)},
+            {"arm_r": 10, "arm_l": 10},
+        ]
+    return keys
+
+
+def death(view: str) -> list[dict]:
+    if _side(view):
+        # Hit from the front: thrown back, knees give, falls flat on the back.
+        recoil = {"torso": -10, "head": -12, "arm_r": 45, "arm_l": 35, "hand_r": 20,
+                  "hand_l": 20, "root": (-1, 0)}
+        sag = {"torso": -6, "head": -8, "arm_r": 60, "arm_l": 50, "hand_r": 25, "hand_l": 25,
+               "leg_r": 20, "foot_r": -35, "leg_l": -5, "foot_l": -30, "root": (-3, 0)}
+        flat = {"arm_r": 30, "arm_l": 20, "hand_r": 10, "hand_l": 10, "head": -10,
+                "leg_r": 10, "leg_l": -5, "root": (-3, 0)}
+        return [
+            {**recoil, "flash": True},
+            {**recoil, "torso": -14, "head": -16, "root": (-2, 0)},
+            sag,
+            {**sag, "fall": -30},
+            {**sag, "arm_r": 90, "arm_l": 70, "fall": -60},
+            {**flat, "fall": -90},
+            {**flat, "fall": -90, "bounce": True},
+            {**flat, "fall": -90, "dark": True},
+        ]
+    recoil = {"torso": -5, "head": -6, "arm_r": 30, "arm_l": 30, "hand_r": 25, "hand_l": 25}
+    slump = {"shift": {"torso": (0, 3), "leg_r": (0, -2), "leg_l": (0, -2)},
+             "arm_r": 15, "arm_l": 15, "head": 10, "torso": 4, "ground": False}
+    return [
+        {**recoil, "flash": True},
+        {**recoil, "arm_r": 40, "arm_l": 40, "torso": -8, "head": -10},
+        {**slump, "shift": {"torso": (0, 2), "leg_r": (0, -1), "leg_l": (0, -1)}},
+        slump,
+        {**slump, "fall": 30},
+        {**slump, "fall": 65},
+        {**slump, "arm_r": 50, "arm_l": 50, "fall": 90},
+        {**slump, "arm_r": 50, "arm_l": 50, "fall": 90, "dark": True},
+    ]
+
+
+# name: (poses, ms per frame, big canvas)
+MOTIONS = {
+    "idle": (idle, 220, False),
+    "walk": (walk, 100, False),
+    "attack": (attack, 70, True),
+    "cast": (cast, 100, True),
+    "death": (death, 110, True),
+}
+
+
+# --- playing ------------------------------------------------------------------
+
+def _angle(a, b) -> float:
+    return math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
+
+
+def _sword_layer(rig: Rig, world: dict, view: str, state: dict, pose: dict) -> Image.Image:
+    layer = Image.new("RGBA", rig.size)
+    draw = ImageDraw.Draw(layer)
+    hand = rig.point(world, "hand_r", "wrist_r")
+    elbow = rig.point(world, "hand_r", 3)
+    shoulder = rig.point(world, "arm_r", 2)
+    length = rig.height * 0.34
+    deg = _angle(elbow, hand) + GRIP[view]
+    ux, uy = fx.unit(deg)
+    tip = (hand[0] + ux * length, hand[1] + uy * length)
+    tip_deg = _angle(shoulder, tip)
+    reach = math.dist(shoulder, tip)
+    if pose.get("trail") and "tip" in state:
+        prev = state["tip"]
+        turn = (tip_deg - prev + 180) % 360 - 180
+        fx.trail(draw, shoulder, tip_deg - turn, tip_deg, reach * 0.7, reach + 1)
+    fx.sword(draw, hand, deg, length)
+    state["tip"] = tip_deg
+    return layer
+
+
+def _magic(rig: Rig, world: dict, view: str, pose: dict, i: int):
+    back = Image.new("RGBA", rig.size)
+    front = Image.new("RGBA", rig.size)
+    if "ring" in pose:
+        foot = (rig.cx, rig.floor + 1)
+        fx.magic_ring(ImageDraw.Draw(back), foot, rig.height * 0.7, i, pose["ring"])
+    if "orb" in pose:
+        radius, travel = pose["orb"]
+        hands = (rig.point(world, "hand_r", "wrist_r") + rig.point(world, "hand_l", "wrist_l")) / 2
+        fxd, fyd = FORWARD[view]
+        center = (hands[0] + fxd * (3 + travel), hands[1] + fyd * travel - radius)
+        d = ImageDraw.Draw(back if view == "up" else front)
+        if travel:
+            d.line([(center[0] - fxd * travel, center[1] - fyd * travel), center],
+                   fill=fx.MAGIC[2], width=2)
+        fx.orb(d, center, radius)
+        fx.sparkles(d, center, radius + 4, seed=i)
+    return back, front
+
+
+def render(still: Image.Image, skeleton, direction: str, motion: str) -> list[Image.Image]:
+    """All frames of one motion for one direction (left is a mirrored right)."""
+    view = "right" if direction == "left" else direction
+    make_poses, _, big = MOTIONS[motion]
+    size = canvas_size(still.width) if big else still.width
+    rig = make_rig(still, skeleton, view, size)
+    state: dict = {}
+    frames = []
+    for i, pose in enumerate(make_poses(view)):
+        body, world = rig.render(pose)
+        if pose.get("glow"):
+            body = fx.tint(body, fx.MAGIC[1], pose["glow"])
+        if pose.get("flash"):
+            body = fx.tint(body, (255, 255, 255), 1.0)
+        if pose.get("sword"):
+            layer = _sword_layer(rig, world, view, state, pose)
+            body = Image.alpha_composite(layer, body) if view == "up" else \
+                Image.alpha_composite(body, layer)
+        back, front = _magic(rig, world, view, pose, i)
+        body = Image.alpha_composite(Image.alpha_composite(back, body), front)
+        if pose.get("fall"):
+            # Profiles fall on their face; front and back views topple sideways.
+            x0, _, x1, y1 = fx.box(body)
+            body = fx.rotate(body, -pose["fall"], ((x0 + x1) / 2, y1))
+            flat = abs(pose["fall"]) > 60
+            floor = rig.floor - (1 if pose.get("bounce") else 0)
+            body = fx.ground(body, floor, size / 2 if flat else None)
+        if pose.get("dark"):
+            body = fx.darken(body)
+        frames.append(body)
+    if direction == "left":
+        frames = [ImageOps.mirror(f) for f in frames]
+    return frames

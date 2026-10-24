@@ -1,0 +1,117 @@
+"""Pixel drawing for things a character holds or throws, and frame filters."""
+from __future__ import annotations
+
+import math
+
+import numpy as np
+from PIL import Image, ImageDraw
+
+OUTLINE = (40, 32, 48, 255)
+BLADE = (226, 232, 240, 255)
+BLADE_EDGE = (150, 160, 178, 255)
+GUARD = (230, 180, 60, 255)
+GRIP = (110, 64, 40, 255)
+TRAIL = (255, 255, 255, 180)
+TRAIL_EDGE = (150, 220, 255, 170)
+MAGIC = [(255, 255, 255, 255), (160, 236, 255, 255), (70, 170, 255, 255), (40, 90, 220, 255)]
+
+
+def unit(deg: float):
+    return math.cos(math.radians(deg)), math.sin(math.radians(deg))
+
+
+def box(img: Image.Image):
+    a = np.asarray(img)[..., 3] > 0
+    ys, xs = np.nonzero(a)
+    return xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+
+
+def sword(draw: ImageDraw.ImageDraw, hand, deg: float, length: float) -> None:
+    ux, uy = unit(deg)
+    hx, hy = hand
+    tip = (hx + ux * length, hy + uy * length)
+    base = (hx + ux * 3, hy + uy * 3)
+    draw.line([base, tip], fill=OUTLINE, width=4)
+    draw.line([base, tip], fill=BLADE_EDGE, width=2)
+    draw.line([(base[0] - uy * 0.5, base[1] + ux * 0.5), tip], fill=BLADE, width=1)
+    px, py = -uy, ux
+    draw.line([(base[0] + px * 3, base[1] + py * 3), (base[0] - px * 3, base[1] - py * 3)],
+              fill=GUARD, width=2)
+    draw.line([(hx - ux * 2, hy - uy * 2), (hx + ux * 2, hy + uy * 2)], fill=GRIP, width=2)
+
+
+def trail(draw: ImageDraw.ImageDraw, center, a0: float, a1: float, r0: float, r1: float) -> None:
+    """Crescent swipe from angle a0 to a1: thin where it started, thick at the end."""
+    if abs(a1 - a0) < 1:
+        return
+    steps = max(4, int(abs(a1 - a0) / 6))
+    outer, inner = [], []
+    for i in range(steps + 1):
+        t = i / steps
+        ux, uy = unit(a0 + (a1 - a0) * t)
+        r_in = r1 - (r1 - r0) * t
+        outer.append((center[0] + ux * r1, center[1] + uy * r1))
+        inner.append((center[0] + ux * r_in, center[1] + uy * r_in))
+    draw.polygon(outer + inner[::-1], fill=TRAIL, outline=TRAIL_EDGE)
+
+
+def orb(draw: ImageDraw.ImageDraw, center, radius: float) -> None:
+    cx, cy = center
+    for color, k in zip(MAGIC[::-1], (1.0, 0.75, 0.5, 0.25)):
+        r = max(0.5, radius * k)
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=color)
+
+
+def magic_ring(draw: ImageDraw.ImageDraw, feet, width: float, phase: int, alpha: int = 255) -> None:
+    """Flat ring at the feet with dots that turn each frame."""
+    cx, cy = feet
+    rx, ry = width / 2, width / 6
+    draw.ellipse((cx - rx, cy - ry, cx + rx, cy + ry), outline=MAGIC[2][:3] + (alpha,), width=1)
+    for i in range(6):
+        ux, uy = unit(phase * 20 + i * 60)
+        x, y = cx + ux * rx, cy + uy * ry
+        draw.rectangle((x - 1, y - 1, x, y), fill=MAGIC[1][:3] + (alpha,))
+
+
+def sparkles(draw: ImageDraw.ImageDraw, center, spread: float, seed: int, count: int = 5) -> None:
+    rng = np.random.default_rng(seed)
+    for _ in range(count):
+        x = center[0] + rng.uniform(-spread, spread)
+        y = center[1] + rng.uniform(-spread, spread)
+        draw.point([(x, y)], fill=MAGIC[int(rng.integers(0, 2))])
+        draw.point([(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)], fill=MAGIC[2])
+
+
+def tint(img: Image.Image, color, amount: float) -> Image.Image:
+    a = np.asarray(img).astype(np.float32)
+    mask = a[..., 3] > 0
+    a[mask, :3] = a[mask, :3] * (1 - amount) + np.array(color[:3]) * amount
+    return Image.fromarray(a.astype(np.uint8))
+
+
+def darken(img: Image.Image, amount: float = 0.6) -> Image.Image:
+    """Grayer and darker, for a body that is down for good."""
+    a = np.asarray(img).astype(np.float32)
+    gray = a[..., :3].mean(axis=2, keepdims=True) * 0.7
+    a[..., :3] = a[..., :3] * (1 - amount) + gray * amount
+    return Image.fromarray(a.astype(np.uint8))
+
+
+def rotate(img: Image.Image, deg: float, pivot) -> Image.Image:
+    """Pixel-art friendly rotation: rotate at 4x, then sample pixel centers.
+
+    Positive degrees turn counterclockwise on screen.
+    """
+    k = 4
+    big = img.resize((img.width * k, img.height * k), Image.NEAREST)
+    big = big.rotate(deg, resample=Image.NEAREST, center=(pivot[0] * k, pivot[1] * k))
+    return Image.fromarray(np.ascontiguousarray(np.asarray(big)[k // 2::k, k // 2::k]))
+
+
+def ground(img: Image.Image, floor: int, center_x: float | None = None) -> Image.Image:
+    """Slide the frame so its lowest pixel is on `floor` (and optionally centered)."""
+    x0, _, x1, y1 = box(img)
+    dx = 0 if center_x is None else round(center_x - (x0 + x1) / 2)
+    out = Image.new("RGBA", img.size)
+    out.paste(img, (dx, floor - (y1 - 1)), img)
+    return out

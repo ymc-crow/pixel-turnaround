@@ -48,37 +48,60 @@ def test_snap_to_grid_recovers_fake_pixels():
     assert snapped.shape[0] >= 18 and snapped.shape[1] >= 28
 
 
-def test_breathe_sinks_upper_body_one_pixel():
-    from turnaround.animate import breathe
 
-    sprite = to_sprites([_figure(60)], size=80)[0]
-    still, sunk = (np.asarray(f)[..., 3] > 0 for f in breathe(sprite))
-    assert np.nonzero(sunk.any(axis=1))[0][0] == np.nonzero(still.any(axis=1))[0][0] + 1
-    assert np.nonzero(sunk.any(axis=1))[0][-1] == np.nonzero(still.any(axis=1))[0][-1]
+def _stick_figure(view="down", size=80):
+    """A plain sprite drawn along the pose skeleton, plus that skeleton."""
+    from PIL import ImageDraw
 
+    from turnaround.pose import LIMBS, keypoints
 
-def test_walk_keeps_colors_and_moves_legs():
-    from turnaround.animate import walk_front, walk_side
-
-    sprite = to_sprites([_figure(60)], size=80)[0]
-    colors = {tuple(c) for c in np.asarray(sprite).reshape(-1, 4) if c[3]}
-    for frames in (walk_side(sprite), walk_front(sprite)):
-        assert len(frames) == 4
-        for f in frames:
-            assert {tuple(c) for c in np.asarray(f).reshape(-1, 4) if c[3]} <= colors
-        assert not np.array_equal(np.asarray(frames[0]), np.asarray(sprite))
+    pts = [None if p is None else [p[0] * size, p[1] * size] for p in keypoints(view)]
+    img = Image.new("RGBA", (size, size))
+    d = ImageDraw.Draw(img)
+    for a, b in LIMBS[:12]:
+        if pts[a - 1] and pts[b - 1]:
+            d.line([tuple(pts[a - 1]), tuple(pts[b - 1])], fill=(200, 60, 60, 255), width=5)
+    neck = pts[1]
+    d.ellipse((neck[0] - 9, neck[1] - 20, neck[0] + 9, neck[1] - 2), fill=(90, 90, 200, 255))
+    return img, pts
 
 
-def test_actions_fit_bigger_frame_and_keep_feet_on_floor():
-    from turnaround.actions import ACTIONS, action_size
+def test_rig_parts_cover_the_sprite_and_rest_pose_is_unchanged():
+    from turnaround.rig import Rig
 
-    sprite = to_sprites([_figure(60)], size=80)[0]
-    for name, (fn, _) in ACTIONS.items():
-        for direction in ("down", "left", "right", "up"):
-            frames = fn(sprite, direction)
-            assert len(frames) >= 6, name
-            assert all(f.size == (action_size(80),) * 2 for f in frames)
-    lying = ACTIONS["death"][0](sprite, "right")[-2]
-    a = np.asarray(lying)[..., 3] > 0
-    ys, xs = np.nonzero(a)
-    assert np.ptp(xs) > np.ptp(ys)  # lying down: wider than tall
+    img, pts = _stick_figure()
+    rig = Rig(img, pts, "down")
+    alpha = np.asarray(img)[..., 3] > 0
+    cover = sum((p[..., 3] > 0).astype(int) for n, p in rig.parts.items() if n != "torso")
+    torso = rig.parts["torso"][..., 3] > 0
+    assert ((cover + torso) >= alpha).all()
+    still, _ = rig.render({})
+    assert np.array_equal(np.asarray(still), np.asarray(img))
+
+
+def test_rig_bends_joints_and_keeps_feet_on_floor():
+    from turnaround.rig import Rig
+
+    img, pts = _stick_figure("right")
+    rig = Rig(img, pts, "right")
+    moved, _ = rig.render({"leg_r": 30, "foot_r": -40, "arm_r": 90})
+    a = np.asarray(moved)[..., 3] > 0
+    assert not np.array_equal(a, np.asarray(img)[..., 3] > 0)
+    assert np.nonzero(a.any(axis=1))[0][-1] == rig.floor
+
+
+def test_every_motion_renders_in_every_direction():
+    from turnaround.moves import MOTIONS, canvas_size, render
+
+    img, pts = _stick_figure()
+    side, side_pts = _stick_figure("right")
+    for name, (_, _, big) in MOTIONS.items():
+        for d in ("down", "left", "right", "up"):
+            still, skel = (side, side_pts) if d in ("left", "right") else (img, pts)
+            frames = render(still, skel, d, name)
+            assert len(frames) >= 4
+            size = canvas_size(80) if big else 80
+            assert all(f.size == (size, size) for f in frames)
+    lying = render(side, side_pts, "right", "death")[-1]
+    ys, xs = np.nonzero(np.asarray(lying)[..., 3] > 0)
+    assert np.ptp(xs) > np.ptp(ys)
