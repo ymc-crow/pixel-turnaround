@@ -17,6 +17,26 @@ side and back come out as different characters. pixel-turnaround fixes that:
 
 Raw model output for that sheet: [examples/knight/raw.png](examples/knight/raw.png)
 
+## Motions
+
+```bash
+pixel-animate out/knight            # idle + walk
+```
+
+![walk](examples/knight/anim/walk_all.gif)
+
+Motions move the finished pixels instead of drawing new ones, so every frame
+keeps the exact look and palette of the standing sprite. No GPU needed.
+
+- `idle`: 2 frames, upper body sinks one pixel.
+- `walk`: 4 frames, legs step and the body bobs.
+
+Output in `out/knight/anim/`: `idle.png`, `walk.png` (rows: down, left, right,
+up), one GIF per direction, and `anim.json` with frame size and timing.
+
+Asking the model to draw walk frames was tried first. With SDXL + OpenPoseXL2
+the frames came out faded and the legs barely moved, so it is not included.
+
 ## Requirements
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally (default `http://127.0.0.1:8188`)
@@ -35,6 +55,7 @@ Any SDXL checkpoint / pixel LoRA / OpenPose ControlNet works; pass `--checkpoint
 ```bash
 pip install -e .
 pixel-turnaround "cute little knight, silver armor, red cape" -o out/knight
+pixel-animate out/knight
 ```
 
 Output in `out/knight/`:

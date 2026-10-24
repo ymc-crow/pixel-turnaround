@@ -1,0 +1,21 @@
+{
+  "frame": 80,
+  "rows": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ],
+  "motions": {
+    "idle": {
+      "file": "idle.png",
+      "frames": 2,
+      "ms": 400
+    },
+    "walk": {
+      "file": "walk.png",
+      "frames": 4,
+      "ms": 160
+    }
+  }
+}
