@@ -20,22 +20,33 @@ Raw model output for that sheet: [examples/knight/raw.png](examples/knight/raw.p
 ## Motions
 
 ```bash
-pixel-animate out/knight            # idle + walk
+pixel-animate out/knight            # idle, walk, attack, cast, death
+pixel-animate out/knight --motions attack,death
 ```
 
-![walk](examples/knight/anim/walk_all.gif)
+![motions](examples/knight/anim/showcase.gif)
 
 Motions move the finished pixels instead of drawing new ones, so every frame
-keeps the exact look and palette of the standing sprite. No GPU needed.
+keeps the exact look and palette of the standing sprite. The sword, slash
+trail and magic are drawn on top as plain pixels. No GPU needed, it takes a
+second.
 
-- `idle`: 2 frames, upper body sinks one pixel.
-- `walk`: 4 frames, legs step and the body bobs.
+| motion | frames | what happens |
+| --- | --- | --- |
+| `idle` | 2 | upper body sinks one pixel |
+| `walk` | 4 | legs step, body bobs |
+| `attack` | 6 | wind-up, swing with a slash trail, recover |
+| `cast` | 6 | magic ring at the feet, orb grows and flies off |
+| `death` | 7 | white hit flash, knocked back, falls over, lies still |
 
-Output in `out/knight/anim/`: `idle.png`, `walk.png` (rows: down, left, right,
-up), one GIF per direction, and `anim.json` with frame size and timing.
+`attack`, `cast` and `death` use a 1.5x bigger frame so the sword and spells fit.
+Output in `out/knight/anim/`: one sheet per motion (rows: down, left, right,
+up), one GIF per motion and direction, and `anim.json` with frame sizes and
+timing.
 
-Asking the model to draw walk frames was tried first. With SDXL + OpenPoseXL2
-the frames came out faded and the legs barely moved, so it is not included.
+Asking the model to draw the frames was tried first. With SDXL + OpenPoseXL2
+it ignored arm poses, changed the outfit between frames, and filled-in frames
+came out faded, so that path is not included.
 
 ## Requirements
 

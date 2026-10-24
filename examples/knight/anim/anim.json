@@ -9,13 +9,33 @@
   "motions": {
     "idle": {
       "file": "idle.png",
+      "frame": 80,
       "frames": 2,
       "ms": 400
     },
     "walk": {
       "file": "walk.png",
+      "frame": 80,
       "frames": 4,
       "ms": 160
+    },
+    "attack": {
+      "file": "attack.png",
+      "frame": 120,
+      "frames": 6,
+      "ms": 80
+    },
+    "cast": {
+      "file": "cast.png",
+      "frame": 120,
+      "frames": 6,
+      "ms": 110
+    },
+    "death": {
+      "file": "death.png",
+      "frame": 120,
+      "frames": 7,
+      "ms": 110
     }
   }
 }
