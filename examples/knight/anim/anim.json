@@ -1,5 +1,4 @@
 {
-  "frame": 80,
   "rows": [
     "down",
     "left",
@@ -10,31 +9,31 @@
     "idle": {
       "file": "idle.png",
       "frame": 80,
-      "frames": 2,
-      "ms": 400
+      "frames": 4,
+      "ms": 220
     },
     "walk": {
       "file": "walk.png",
       "frame": 80,
-      "frames": 4,
-      "ms": 160
+      "frames": 8,
+      "ms": 100
     },
     "attack": {
       "file": "attack.png",
       "frame": 120,
-      "frames": 6,
-      "ms": 80
+      "frames": 8,
+      "ms": 70
     },
     "cast": {
       "file": "cast.png",
       "frame": 120,
-      "frames": 6,
-      "ms": 110
+      "frames": 8,
+      "ms": 100
     },
     "death": {
       "file": "death.png",
       "frame": 120,
-      "frames": 7,
+      "frames": 8,
       "ms": 110
     }
   }

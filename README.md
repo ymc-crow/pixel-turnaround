@@ -26,23 +26,36 @@ pixel-animate out/knight --motions attack,death
 
 ![motions](examples/knight/anim/showcase.gif)
 
-Motions move the finished pixels instead of drawing new ones, so every frame
-keeps the exact look and palette of the standing sprite. The sword, slash
-trail and magic are drawn on top as plain pixels. No GPU needed, it takes a
-second.
+The model was asked to follow a pose skeleton, and that skeleton is saved in
+`sheet.json`. `pixel-animate` uses it as a 2D bone rig, the way Spine or
+DragonBones work:
+
+1. The standing sprite is cut into head, torso, upper/lower arms and legs,
+   each pixel going to the nearest bone.
+2. Where an arm covered the torso, the torso gets filled-in pixels so a
+   moving arm does not leave a hole.
+3. Each motion is a list of joint angles. Parts rotate around their joints,
+   parents first, and are drawn back with nearest-pixel sampling, so the art
+   stays crisp and keeps its palette. Feet are kept on the floor.
+4. Sword, slash trail and magic are drawn on top as plain pixels.
+
+No GPU needed, it takes a second.
 
 | motion | frames | what happens |
 | --- | --- | --- |
-| `idle` | 2 | upper body sinks one pixel |
-| `walk` | 4 | legs step, body bobs |
-| `attack` | 6 | wind-up, swing with a slash trail, recover |
-| `cast` | 6 | magic ring at the feet, orb grows and flies off |
-| `death` | 7 | white hit flash, knocked back, falls over, lies still |
+| `idle` | 4 | breathing, arms sway a little |
+| `walk` | 8 | legs swing with bending knees, arms swing opposite |
+| `attack` | 8 | wind-up, swing with a slash trail, follow-through |
+| `cast` | 8 | arms rise, an orb grows over the head and is thrown |
+| `death` | 8 | hit flash, staggers back, falls flat, lies still |
 
-`attack`, `cast` and `death` use a 1.5x bigger frame so the sword and spells fit.
-Output in `out/knight/anim/`: one sheet per motion (rows: down, left, right,
-up), one GIF per motion and direction, and `anim.json` with frame sizes and
-timing.
+`attack`, `cast` and `death` use a 1.5x bigger frame so the sword and the fall
+fit. Output in `out/knight/anim/`: one sheet per motion (rows: down, left,
+right, up), one GIF per motion and direction, and `anim.json` with frame sizes
+and timing. Poses live in `turnaround/moves.py`; add your own there.
+
+Limits: parts are cut from a single drawing, so an arm hidden behind the body
+in the side view stays thin, and a cape moves with the torso.
 
 Asking the model to draw the frames was tried first. With SDXL + OpenPoseXL2
 it ignored arm poses, changed the outfit between frames, and filled-in frames
