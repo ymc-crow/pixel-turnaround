@@ -12,6 +12,7 @@ dev = ["pytest", "ruff"]
 
 [project.scripts]
 pixel-turnaround = "turnaround.cli:main"
+pixel-animate = "turnaround.animate:main"
 
 [tool.setuptools]
 packages = ["turnaround"]

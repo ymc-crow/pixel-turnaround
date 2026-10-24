@@ -60,3 +60,25 @@ def test_shared_box_keeps_position_and_palette_is_reused():
     used = {tuple(c) for c in np.asarray(again)[..., :3][np.asarray(again)[..., 3] > 0]}
     known = {tuple(c) for c in np.asarray(first[0])[..., :3][np.asarray(first[0])[..., 3] > 0]}
     assert used <= known
+
+
+
+def test_breathe_sinks_upper_body_one_pixel():
+    from turnaround.animate import breathe
+
+    sprite = to_sprites([_figure(60)], size=80)[0]
+    still, sunk = (np.asarray(f)[..., 3] > 0 for f in breathe(sprite))
+    assert np.nonzero(sunk.any(axis=1))[0][0] == np.nonzero(still.any(axis=1))[0][0] + 1
+    assert np.nonzero(sunk.any(axis=1))[0][-1] == np.nonzero(still.any(axis=1))[0][-1]
+
+
+def test_walk_keeps_colors_and_moves_legs():
+    from turnaround.animate import walk_front, walk_side
+
+    sprite = to_sprites([_figure(60)], size=80)[0]
+    colors = {tuple(c) for c in np.asarray(sprite).reshape(-1, 4) if c[3]}
+    for frames in (walk_side(sprite), walk_front(sprite)):
+        assert len(frames) == 4
+        for f in frames:
+            assert {tuple(c) for c in np.asarray(f).reshape(-1, 4) if c[3]} <= colors
+        assert not np.array_equal(np.asarray(frames[0]), np.asarray(sprite))

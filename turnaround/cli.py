@@ -16,7 +16,8 @@ from .pose import MODES, VIEW_WORDS, pose_sheet
 CANVAS = {"4": (1536, 640), "8": (1600, 640)}
 
 
-def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path) -> None:
+def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
+          character: str | None = None) -> None:
     spec = MODES[mode]
     cells = split_cells(snap_to_grid(raw), len(spec["draw"]))
     drawn = dict(zip(spec["draw"], to_sprites(cells, size=size, colors=colors)))
@@ -32,7 +33,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path) -> Non
     full = sheet(frames)
     full.save(out / "sheet.png")
     preview(full).save(out / "preview.png")
-    meta = {"frame": frames[0].width, "order": spec["order"]}
+    meta = {"frame": frames[0].width, "order": spec["order"], "character": character}
     (out / "sheet.json").write_text(json.dumps(meta, indent=2))
 
 
@@ -56,7 +57,8 @@ def main(argv=None) -> None:
     out = Path(args.out)
 
     if args.from_raw:
-        build(Image.open(args.from_raw), args.directions, args.size, args.colors, out)
+        build(Image.open(args.from_raw), args.directions, args.size, args.colors, out,
+              args.character)
         print(f"done: {out / 'sheet.png'}")
         return
     if not args.character:
@@ -79,7 +81,7 @@ def main(argv=None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     raw.save(out / "raw.png")
     pose.save(out / "pose.png")
-    build(raw, args.directions, args.size, args.colors, out)
+    build(raw, args.directions, args.size, args.colors, out, args.character)
     print(f"done: {out / 'sheet.png'}  (seed {seed})")
 
 
