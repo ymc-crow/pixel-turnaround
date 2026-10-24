@@ -11,31 +11,35 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-# name, parent, start point, end point, thickness as a share of body height.
-# Numbers are OpenPose keypoints; strings are points worked out below.
+# name, parent, start point (the joint it turns around), end point, thickness
+# as a share of body height. Numbers are OpenPose keypoints; strings are points
+# worked out below.
 BONES = [
-    ("torso", None, "hip", 1, 0.15),
+    ("hips", None, "hip", "hip", 0.09),
+    ("torso", "hips", "hip", 1, 0.15),
     ("head", "torso", 1, "top", 0.24),
     ("arm_r", "torso", 2, 3, 0.06),
     ("hand_r", "arm_r", 3, "wrist_r", 0.06),
     ("arm_l", "torso", 5, 6, 0.06),
     ("hand_l", "arm_l", 6, "wrist_l", 0.06),
-    ("leg_r", None, 8, 9, 0.065),
+    ("leg_r", "hips", 8, 9, 0.065),
     ("foot_r", "leg_r", 9, "sole_r", 0.07),
-    ("leg_l", None, 11, 12, 0.065),
+    ("leg_l", "hips", 11, 12, 0.065),
     ("foot_l", "leg_l", 12, "sole_l", 0.07),
 ]
 NAMES = [b[0] for b in BONES]
-LIMBS = [n for n in NAMES if n not in ("torso", "head")]
+CORE = ("hips", "torso", "head")
+# The pelvis is a band across both hip joints, not a single point.
+SEGMENT = {"hips": (8, 11)}
 
 # Back to front. Profiles face right: the character's right side is near us.
 DRAW_ORDER = {
-    "right": ["arm_l", "hand_l", "leg_l", "foot_l", "torso", "head",
+    "right": ["arm_l", "hand_l", "leg_l", "foot_l", "hips", "torso", "head",
               "leg_r", "foot_r", "arm_r", "hand_r"],
-    "down": ["leg_r", "foot_r", "leg_l", "foot_l", "torso",
+    "down": ["leg_r", "foot_r", "leg_l", "foot_l", "hips", "torso",
              "arm_r", "hand_r", "arm_l", "hand_l", "head"],
     "up": ["leg_r", "foot_r", "leg_l", "foot_l", "arm_r", "hand_r",
-           "arm_l", "hand_l", "torso", "head"],
+           "arm_l", "hand_l", "hips", "torso", "head"],
 }
 
 
@@ -88,13 +92,18 @@ class Rig:
 
         pix = np.stack([xs + 0.5, ys + 0.5], axis=1)
         scores = []
+        below_hip = pix[:, 1] > self.pts["hip"][1]
+        above_neck = pix[:, 1] < self.pts[1][1]
         for name, _, s, e, r in BONES:
+            s, e = SEGMENT.get(name, (s, e))
             d = _seg_dist(pix, self.pts[s], self.pts[e]) / (r * self.height)
-            above_neck = pix[:, 1] < self.pts[1][1]
             if name == "head":
                 d = np.where(above_neck, 0.0, np.inf)
             else:
                 d = np.where(above_neck, np.inf, d)
+            if name == "torso":
+                # Below the belt it is hips or legs, so skirts move with them.
+                d = np.where(below_hip, np.inf, d)
             scores.append(d)
         scores = np.stack(scores)
         label = scores.argmin(axis=0)
@@ -105,13 +114,17 @@ class Rig:
             sel = label == i
             tex[ys[sel], xs[sel]] = a[ys[sel], xs[sel]]
             self.parts[name] = tex
-        # Where a limb lay over the torso, the torso needs pixels of its own,
-        # or a moving arm would leave a hole behind.
-        under = np.zeros(a.shape[:2], bool)
-        ti = NAMES.index("torso")
-        inside = (scores[ti] < 1.0) & (label != ti) & (label != NAMES.index("head"))
-        under[ys[inside], xs[inside]] = True
-        _fill(self.parts["torso"], under)
+        # Where a limb lay over the body, the body needs pixels of its own,
+        # or a moving arm or leg would leave a hole behind.
+        for core in ("torso", "hips"):
+            ci = NAMES.index(core)
+            inside = (scores[ci] < 1.0) & ~np.isin(label, [NAMES.index(n) for n in CORE])
+            under = np.zeros(a.shape[:2], bool)
+            under[ys[inside], xs[inside]] = True
+            _fill(self.parts[core], under)
+        self.alpha = a[..., 3] > 0
+        self.joints = [(name, parent, s, r * self.height) for name, parent, s, _, r in BONES
+                       if parent]
 
     def _points(self, skeleton, xs):
         p = {i: None if q is None else np.array(q, float) for i, q in enumerate(skeleton)}
@@ -140,9 +153,11 @@ class Rig:
                 continue
             start, end = self.pts[s], self.pts[e]
             down = end[1] > start[1]
-            if self.view == "right":
+            if name == "hips":
+                out[name] = v
+            elif self.view == "right":
                 out[name] = -v if down else v
-            elif name in ("torso", "head"):
+            elif name in CORE:
                 out[name] = v
             else:
                 left_side = (start[0] + end[0]) / 2 < self.cx
@@ -202,4 +217,30 @@ class Rig:
             color = tex[sy[ok], sx[ok]]
             vis = color[:, 3] > 0
             out[ty[vis], tx[vis]] = color[vis]
+        self._close_joints(out, world)
         return Image.fromarray(out), world
+
+    def _close_joints(self, out: np.ndarray, world: dict) -> None:
+        """Fill the cracks that open where a bent part meets its parent.
+
+        A crack is an empty pixel near a joint that, followed back through
+        either of the two parts' movement, was body in the original sprite.
+        """
+        h, w = out.shape[:2]
+        gy, gx = np.mgrid[0:h, 0:w]
+        cx, cy = gx + 0.5, gy + 0.5
+        crack = np.zeros((h, w), bool)
+        empty = out[..., 3] == 0
+        for name, parent, joint, radius in self.joints:
+            x, y = self.point(world, name, joint)
+            cand = empty & ((cx - x) ** 2 + (cy - y) ** 2 < (radius * 1.2) ** 2)
+            if not cand.any():
+                continue
+            pts = np.stack([cx[cand], cy[cand], np.ones(cand.sum())])
+            was_body = np.zeros(cand.sum(), bool)
+            for m in (world[name], world[parent]):
+                sx, sy = np.floor(np.linalg.inv(m) @ pts)[:2].astype(int)
+                ok = (sx >= 0) & (sx < w) & (sy >= 0) & (sy < h)
+                was_body[ok] |= self.alpha[sy[ok], sx[ok]]
+            crack[gy[cand][was_body], gx[cand][was_body]] = True
+        _fill(out, crack, steps=3)

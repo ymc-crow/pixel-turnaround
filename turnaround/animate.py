@@ -32,8 +32,10 @@ HOLD = {"death": 1200}
 def stack(rows: list[list[Image.Image]]) -> Image.Image:
     strips = [sheet(r) for r in rows]
     out = Image.new("RGBA", (max(s.width for s in strips), sum(s.height for s in strips)))
-    for i, s in enumerate(strips):
-        out.paste(s, (0, i * s.height))
+    y = 0
+    for s in strips:
+        out.paste(s, (0, y))
+        y += s.height
     return out
 
 

@@ -65,7 +65,8 @@ def walk(view: str) -> list[dict]:
                 # the knee bends while that leg swings forward
                 "foot_r": -40 * max(0.0, c), "foot_l": -40 * max(0.0, -c),
                 "arm_r": -24 * s, "arm_l": 24 * s, "hand_r": 18, "hand_l": 18,
-                "torso": 4, "head": -2,
+                # the pelvis rocks with the stride, the chest turns against it
+                "hips": 5 * s, "torso": 4 - 4 * s, "head": -2 + 1.5 * s,
             })
         else:
             lift_r, lift_l = max(0.0, s), max(0.0, -s)
@@ -74,7 +75,10 @@ def walk(view: str) -> list[dict]:
                           "foot_r": (0, -round(lift_r)), "foot_l": (0, -round(lift_l))},
                 "arm_r": 4 + 8 * lift_l, "arm_l": 4 + 8 * lift_r,
                 "hand_r": 6, "hand_l": 6,
-                "torso": 2 * s, "head": -1.5 * s, "ground": False,
+                # the hip drops on the lifted side and the body sways over the
+                # standing foot; chest and head lean back the other way
+                "hips": 5 * s, "torso": -4 * s, "head": -1.5 * s,
+                "root": (round(-s), 0), "ground": False,
             })
     return poses
 
@@ -263,9 +267,12 @@ def render(still: Image.Image, skeleton, direction: str, motion: str) -> list[Im
             # Profiles fall on their face; front and back views topple sideways.
             x0, _, x1, y1 = fx.box(body)
             body = fx.rotate(body, -pose["fall"], ((x0 + x1) / 2, y1))
-            flat = abs(pose["fall"]) > 60
+            # Slide toward the middle while falling so the body stays in frame.
+            x0, _, x1, _ = fx.box(body)
+            k = min(1.0, abs(pose["fall"]) / 90)
+            center = (x0 + x1) / 2 * (1 - k) + size / 2 * k
             floor = rig.floor - (1 if pose.get("bounce") else 0)
-            body = fx.ground(body, floor, size / 2 if flat else None)
+            body = fx.ground(body, floor, center)
         if pose.get("dark"):
             body = fx.darken(body)
         frames.append(body)
