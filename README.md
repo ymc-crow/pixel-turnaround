@@ -30,13 +30,14 @@ The model was asked to follow a pose skeleton, and that skeleton is saved in
 `sheet.json`. `pixel-animate` uses it as a 2D bone rig, the way Spine or
 DragonBones work:
 
-1. The standing sprite is cut into head, torso, upper/lower arms and legs,
+1. The standing sprite is cut into head, torso, pelvis, upper/lower arms and legs,
    each pixel going to the nearest bone.
 2. Where an arm covered the torso, the torso gets filled-in pixels so a
    moving arm does not leave a hole.
 3. Each motion is a list of joint angles. Parts rotate around their joints,
    parents first, and are drawn back with nearest-pixel sampling, so the art
-   stays crisp and keeps its palette. Feet are kept on the floor.
+   stays crisp and keeps its palette. Feet are kept on the floor, and cracks
+   that open at bent joints are filled.
 4. Sword, slash trail and magic are drawn on top as plain pixels.
 
 No GPU needed, it takes a second.
@@ -44,7 +45,7 @@ No GPU needed, it takes a second.
 | motion | frames | what happens |
 | --- | --- | --- |
 | `idle` | 4 | breathing, arms sway a little |
-| `walk` | 8 | legs swing with bending knees, arms swing opposite |
+| `walk` | 8 | legs swing with bending knees, pelvis rocks, arms swing opposite |
 | `attack` | 8 | wind-up, swing with a slash trail, follow-through |
 | `cast` | 8 | arms rise, an orb grows over the head and is thrown |
 | `death` | 8 | hit flash, staggers back, falls flat, lies still |
