@@ -1,0 +1,23 @@
+[project]
+name = "pixel-turnaround"
+version = "0.1.0"
+description = "One pixel-art character, every direction, same look. Uses ComfyUI + SDXL + OpenPose."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = ["pillow>=10", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+pixel-turnaround = "turnaround.cli:main"
+
+[tool.setuptools]
+packages = ["turnaround"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
