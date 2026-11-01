@@ -163,8 +163,8 @@ def death(view: str) -> list[dict]:
                   "hand_l": 20, "root": (-1, 0)}
         sag = {"torso": -6, "head": -8, "arm_r": 60, "arm_l": 50, "hand_r": 25, "hand_l": 25,
                "leg_r": 20, "foot_r": -35, "leg_l": -5, "foot_l": -30, "root": (-3, 0)}
-        flat = {"arm_r": 30, "arm_l": 20, "hand_r": 10, "hand_l": 10, "head": -10,
-                "leg_r": 10, "leg_l": -5, "root": (-3, 0)}
+        # Lying nearly straight: bent limbs on a tipped 48px body read as a lump.
+        flat = {"arm_r": 10, "arm_l": 10, "head": -5, "root": (-3, 0)}
         return [
             {**recoil, "flash": True},
             {**recoil, "torso": -14, "head": -16, "root": (-2, 0)},
@@ -185,8 +185,8 @@ def death(view: str) -> list[dict]:
         slump,
         {**slump, "fall": 30},
         {**slump, "fall": 65},
-        {**slump, "arm_r": 50, "arm_l": 50, "fall": 90},
-        {**slump, "arm_r": 50, "arm_l": 50, "fall": 90, "dark": True},
+        {"arm_r": 10, "arm_l": 10, "fall": 90},
+        {"arm_r": 10, "arm_l": 10, "fall": 90, "dark": True},
     ]
 
 

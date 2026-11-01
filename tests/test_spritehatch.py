@@ -301,3 +301,15 @@ def test_showcase_has_a_row_per_motion(tmp_path):
     frames = showcase(tmp_path / "anim", zoom=1)
     big = 120                                # death's frame, 1.5x the 80px sprite
     assert frames[0].size == (big * 3, big * 2)
+
+
+def test_scale2x_doubles_and_smooths_a_diagonal():
+    from spritehatch.effects import scale2x
+
+    a = np.zeros((2, 2, 4), np.uint8)
+    a[0, 0] = a[1, 1] = (255, 0, 0, 255)       # a diagonal line
+    b = scale2x(np.ascontiguousarray(a))
+    assert b.shape == (4, 4, 4)
+    red = b[..., 0] == 255
+    assert red[1, 2] and red[2, 1]             # the gap between the blocks is filled
+    assert not red[0, 3] and not red[3, 0]     # the far corners stay empty
