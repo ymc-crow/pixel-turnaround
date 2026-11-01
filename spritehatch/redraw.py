@@ -24,7 +24,7 @@ from .pose import VIEW_WORDS, draw_cell
 # Target cell size. Small on purpose: the model's fake pixels keep their size,
 # so a small cell gives few, big ones, close to what a 48px frame can hold
 # (and it is much faster than SDXL's own 1024x1024).
-CELL = 288
+CELL = 384
 GROUP = 4
 
 
