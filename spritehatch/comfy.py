@@ -159,9 +159,9 @@ ZIMAGE_PROMPT = (
     "character turnaround sprite sheet, the same character shown {count} times in a row: "
     "{views}. {character}. Super-deformed chibi, about 2.5 heads tall, very big head, short "
     "stubby body and legs, full body, standing, holding every item from the description in "
-    "hand, face clearly visible. Bold dark "
-    "outlines, vibrant saturated colors, strong contrast shading. Identical outfit and "
-    "colors in every view, plain white background, game sprite."
+    "hand, face clearly visible. Clean black outlines, bright vibrant colors, cel shading "
+    "with bright highlights. Identical outfit and colors in every view, plain white "
+    "background, game sprite."
 )
 
 
