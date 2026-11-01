@@ -1,7 +1,8 @@
 """Motions as joint poses, played on the bone rig.
 
 A pose is a dict of bone -> degrees (see Rig.angles for what the numbers
-mean), plus optional "shift" (bone -> pixels), "root" and effect keys that
+mean), plus optional "shift" (bone -> pixels), "lift" (bone -> share of the
+body height to raise it), "root" and effect keys that
 render() handles after the body is drawn:
 
     sword   draw the sword in the right hand
@@ -73,8 +74,9 @@ def walk(view: str) -> list[dict]:
         else:
             lift_r, lift_l = max(0.0, s), max(0.0, -s)
             poses.append({
-                "shift": {"leg_r": (0, -round(2 * lift_r)), "leg_l": (0, -round(2 * lift_l)),
-                          "foot_r": (0, -round(lift_r)), "foot_l": (0, -round(lift_l))},
+                # the stepping leg lifts a clear tenth of the body, knee first
+                "lift": {"leg_r": 0.06 * lift_r, "leg_l": 0.06 * lift_l,
+                         "foot_r": 0.04 * lift_r, "foot_l": 0.04 * lift_l},
                 "arm_r": 4 + 8 * lift_l, "arm_l": 4 + 8 * lift_r,
                 "hand_r": 6, "hand_l": 6,
                 # the hip drops on the lifted side and the body sways over the

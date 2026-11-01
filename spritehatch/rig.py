@@ -166,7 +166,12 @@ class Rig:
 
     def matrices(self, pose: dict) -> dict:
         rot = self.angles(pose)
-        shift = pose.get("shift", {})
+        shift = dict(pose.get("shift", {}))
+        # "lift" raises a bone by a share of the body height, so a step looks
+        # the same at 48 and at 96 pixels.
+        for name, share in pose.get("lift", {}).items():
+            dx, dy = shift.get(name, (0, 0))
+            shift[name] = (dx, dy - round(share * self.height))
         root = _move(*pose.get("root", (0, 0)))
         world = {}
         for name, parent, s, _, _ in BONES:
