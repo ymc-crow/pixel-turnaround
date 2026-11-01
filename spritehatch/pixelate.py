@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 
 def _grid_axis(gray: np.ndarray, axis: int, lo: int = 3, hi: int = 20):
@@ -323,9 +323,12 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
 
 
 def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: np.ndarray,
-                dark_weight: float = 2.0) -> np.ndarray:
-    """Big drawing -> small RGBA in the given colors: nearest color at full
-    size, a weighted vote per sprite pixel, then lone light specks removed."""
+                dark_weight: float = 2.0, smooth: int = 3) -> np.ndarray:
+    """Big drawing -> small RGBA in the given colors: a light median blur
+    first (the model's shading is speckled; flat areas read better small),
+    then nearest color at full size, a weighted vote per sprite pixel, and
+    lone light specks removed."""
+    rgb = np.asarray(Image.fromarray(rgb).filter(ImageFilter.MedianFilter(smooth))) if smooth else rgb
     lum = colors @ LUMA
     weight = 1 + dark_weight * (1 - lum / 255) ** 2
     idx, alpha = _vote_shrink(nearest(rgb, colors), fg, size, weight)
