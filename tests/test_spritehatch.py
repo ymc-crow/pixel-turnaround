@@ -175,7 +175,7 @@ def test_redraw_paints_four_frames_per_grid_and_keeps_size_and_palette():
     pts: list = []
     frames = render(side, side_pts, "right", "walk", keypoints=pts)
     draft, pose = build_grids(frames[:4], pts[:4])
-    assert draft.size == pose.size == (cell_size(80) * 2,) * 2 == (960, 960)
+    assert draft.size == pose.size == (cell_size(80) * 2,) * 2
     assert np.asarray(pose).any()
 
     fake = _FakeComfy()

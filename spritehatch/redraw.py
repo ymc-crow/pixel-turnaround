@@ -18,12 +18,14 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from .comfy import WORKFLOWS, ComfyClient
-from .pixelate import _shrink, background_mask
+from .pixelate import LUMA, background_mask, inline, main_body, open_holes, paint_small
 from .pose import VIEW_WORDS, draw_cell
 
-CELL = 512      # target cell size: 2x2 cells is about SDXL's own 1024x1024
+# Target cell size. Small on purpose: the model's fake pixels keep their size,
+# so a small cell gives few, big ones, close to what a 48px frame can hold
+# (and it is much faster than SDXL's own 1024x1024).
+CELL = 288
 GROUP = 4
-COLORS = 32
 
 
 def cell_size(frame: int) -> int:
@@ -74,34 +76,32 @@ def build_grids(frames: list[Image.Image], keypoints: list) -> tuple[Image.Image
     return draft, pose
 
 
-def split_grid(grid: Image.Image, count: int, frame: int, palette: Image.Image) -> list[Image.Image]:
-    """Cut the painted grid back into `count` frames of frame x frame pixels."""
+def split_grid(grid: Image.Image, count: int, frame: int, colors: np.ndarray) -> list[Image.Image]:
+    """Cut the painted grid back into `count` frames of frame x frame pixels,
+    shrunk the same way as the stills and drawn only in their colors."""
     out = []
     cell = cell_size(frame)
+    ink = colors[(colors @ LUMA).argmin()]
     for k in range(count):
         cx, cy = (k % 2) * cell, (k // 2) * cell
         part = grid.crop((cx, cy, cx + cell, cy + cell))
-        fg = ~background_mask(part)
-        rgb, alpha = _shrink(np.asarray(part.convert("RGB"), np.float32),
-                             fg.astype(np.float32), (frame, frame))
-        recolored = Image.fromarray(rgb).quantize(palette=palette, dither=Image.Dither.NONE)
-        rgba = np.asarray(recolored.convert("RGBA")).copy()
-        rgba[..., 3] = np.where(alpha, 255, 0)
-        out.append(Image.fromarray(rgba))
+        fg = main_body(open_holes(part, ~background_mask(part)))
+        small = paint_small(np.asarray(part.convert("RGB")), fg, (frame, frame), colors)
+        out.append(Image.fromarray(inline(small, ink)))
     return out
 
 
-def sprite_palette(still: Image.Image, colors: int = COLORS) -> Image.Image:
+def sprite_colors(still: Image.Image) -> np.ndarray:
+    """Every color the standing sprite uses."""
     a = np.asarray(still.convert("RGBA"))
-    px = a[a[..., 3] > 0][:, :3][None]
-    return Image.fromarray(px).quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+    return np.unique(a[a[..., 3] > 0][:, :3], axis=0)
 
 
 def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
            character: str, view: str, motion: str, client: ComfyClient,
            denoise: float = 0.6, seed: int = 0, model: str = "zimage") -> list[Image.Image]:
     """Paint over all frames of one motion and view, four at a time."""
-    palette = sprite_palette(still)
+    colors = sprite_colors(still)
     prompt = PROMPT.format(n=GROUP, action=ACTION.get(motion, motion),
                            view=VIEW_WORDS[view], character=character)
     out = []
@@ -113,5 +113,5 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
                              client.upload_image(pose, f"{tag}_pose.png"),
                              denoise=denoise, seed=seed)
         painted = client.run(wf)[0]
-        out += split_grid(painted, len(part), part[0].width, palette)
+        out += split_grid(painted, len(part), part[0].width, colors)
     return out

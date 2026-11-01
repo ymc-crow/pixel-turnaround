@@ -236,6 +236,9 @@ def open_holes(cell: Image.Image, fg: np.ndarray, biggest: float = 0.004,
     return fg & ~big[label]
 
 
+LUMA = np.array([0.3, 0.59, 0.11])
+
+
 def _vote_shrink(q: np.ndarray, fg: np.ndarray, size: tuple[int, int], weight: np.ndarray):
     """Shrink a palette-index image: each output pixel takes the most common
     color of its block, with dark colors counting extra so thin lines (eyes,
@@ -302,26 +305,46 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
         x0, y0, x1, y1 = _bbox(fg)
         cut.append((np.asarray(cell.convert("RGB"))[y0:y1, x0:x1], fg[y0:y1, x0:x1], (x0, y0)))
     rgb_of = pick_colors(np.concatenate([rgb[m] for rgb, m, _ in cut]), colors, method)
-    lum = rgb_of @ np.array([0.3, 0.59, 0.11])
-    weight = 1 + dark_weight * (1 - lum / 255) ** 2
-    ink = rgb_of[lum.argmin()]
+    ink = rgb_of[(rgb_of @ LUMA).argmin()]
 
     margin = 1                           # room for the outline
     scale = (size - 2 * margin) / max(max(rgb.shape[:2]) for rgb, _, _ in cut)
     sprites = []
     for rgb, fg, (x0, y0) in cut:
-        q = nearest(rgb, rgb_of)
         h, w = max(1, round(rgb.shape[0] * scale)), max(1, round(rgb.shape[1] * scale))
-        idx, alpha = _vote_shrink(q, fg, (w, h), weight)
-        idx = _drop_strays(idx, alpha, lum)
+        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight)
         rgba = np.zeros((size, size, 4), np.uint8)
         left, top = (size - w) // 2, size - margin - h
-        rgba[top:top + h, left:left + w, :3] = rgb_of[idx]
-        rgba[top:top + h, left:left + w, 3] = alpha * 255
+        rgba[top:top + h, left:left + w] = small
         sprite = Image.fromarray(outline(rgba, ink))
         sprite.info["place"] = (scale, x0, y0, left, top)
         sprites.append(sprite)
     return sprites
+
+
+def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: np.ndarray,
+                dark_weight: float = 2.0) -> np.ndarray:
+    """Big drawing -> small RGBA in the given colors: nearest color at full
+    size, a weighted vote per sprite pixel, then lone light specks removed."""
+    lum = colors @ LUMA
+    weight = 1 + dark_weight * (1 - lum / 255) ** 2
+    idx, alpha = _vote_shrink(nearest(rgb, colors), fg, size, weight)
+    idx = _drop_strays(idx, alpha, lum)
+    out = np.zeros((size[1], size[0], 4), np.uint8)
+    out[..., :3] = colors[idx]
+    out[..., 3] = alpha * 255
+    return out
+
+
+def inline(rgba: np.ndarray, color) -> np.ndarray:
+    """Like outline, but on the edge pixels themselves, so the size of the
+    silhouette does not change."""
+    out = rgba.copy()
+    solid = rgba[..., 3] > 0
+    p = np.pad(solid, 1)
+    edge = solid & ~(p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:])
+    out[edge, :3] = color
+    return out
 
 
 def sheet(sprites: list[Image.Image]) -> Image.Image:

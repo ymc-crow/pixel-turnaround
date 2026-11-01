@@ -63,11 +63,11 @@ def main(argv=None) -> None:
                     help="comma separated: " + ", ".join(MOTIONS))
     ap.add_argument("--redraw", action="store_true",
                     help="let the model paint over the rig frames, 4 per motion (needs ComfyUI, "
-                         "about 3 min per motion and direction on an M1 Pro)")
+                         "about 1.5 min per motion and direction on an M1 Pro)")
     ap.add_argument("--denoise", type=float, default=0.6,
                     help="how much --redraw may change (0.6 keeps the look; higher drifts)")
     ap.add_argument("--model", choices=sorted(WORKFLOWS), default="zimage",
-                    help="model --redraw paints with: zimage (Z-Image-Turbo, best, ~5 min per motion and direction) or sdxl (~3 min)")
+                    help="model --redraw paints with: zimage (Z-Image-Turbo, best) or sdxl")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--server", default="http://127.0.0.1:8188")
     args = ap.parse_args(argv)
