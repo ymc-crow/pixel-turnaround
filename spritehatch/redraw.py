@@ -100,7 +100,11 @@ def sprite_colors(still: Image.Image) -> np.ndarray:
 def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
            character: str, view: str, motion: str, client: ComfyClient,
            denoise: float = 0.6, seed: int = 0, model: str = "zimage") -> list[Image.Image]:
-    """Paint over all frames of one motion and view, four at a time."""
+    """Paint over all frames of one motion and view, four at a time.
+
+    Some frames keep their rig drawing: tipped-over ones (no skeleton to
+    guide the model, it paints a lump) and ones the model mostly lost, like
+    the white hit flash, which melts into the white background."""
     colors = sprite_colors(still)
     prompt = PROMPT.format(n=GROUP, action=ACTION.get(motion, motion),
                            view=VIEW_WORDS[view], character=character)
@@ -113,5 +117,10 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
                              client.upload_image(pose, f"{tag}_pose.png"),
                              denoise=denoise, seed=seed)
         painted = client.run(wf)[0]
-        out += split_grid(painted, len(part), part[0].width, colors)
+        for rig, new, p in zip(part, split_grid(painted, len(part), part[0].width, colors), pts):
+            out.append(new if p is not None and _area(new) >= 0.5 * _area(rig) else rig)
     return out
+
+
+def _area(frame: Image.Image) -> int:
+    return int((np.asarray(frame)[..., 3] > 0).sum())

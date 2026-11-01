@@ -235,3 +235,23 @@ def test_open_holes_frees_trapped_background_but_keeps_eye_whites():
     assert not fg[40, 40]
     assert fg[25, 60]
     assert fg[70, 70]
+
+
+def test_redraw_keeps_rig_frames_it_cannot_guide_or_lost():
+    from spritehatch.moves import render
+    from spritehatch.redraw import redraw
+
+    side, side_pts = _stick_figure("right")
+    pts: list = []
+    frames = render(side, side_pts, "right", "death", keypoints=pts)[-4:]
+    pts = pts[-4:]
+
+    class Blank(_FakeComfy):
+        def run(self, wf):
+            self.runs += 1
+            img = self.uploads[wf["init"]["inputs"]["image"]]
+            return [Image.new("RGB", img.size, "white")]    # paints nothing
+
+    out = redraw(frames, pts, still=side, character="knight", view="right",
+                 motion="death", client=Blank())
+    assert [np.asarray(a).tobytes() for a in out] == [np.asarray(b).tobytes() for b in frames]
