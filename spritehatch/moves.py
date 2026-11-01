@@ -254,13 +254,22 @@ KEYPOINT_BONE = {0: "head", 14: "head", 15: "head", 16: "head", 17: "head",
                  11: "hips", 12: "leg_l", 13: "foot_l"}
 
 
+def _turn(p, deg: float, pivot, shift) -> tuple:
+    """Where point p goes when the frame turns `deg` clockwise around pivot
+    and then moves by shift (what fx.rotate + fx.ground do to the pixels)."""
+    a = math.radians(deg)
+    dx, dy = p[0] - pivot[0], p[1] - pivot[1]
+    return (pivot[0] + dx * math.cos(a) - dy * math.sin(a) + shift[0],
+            pivot[1] + dx * math.sin(a) + dy * math.cos(a) + shift[1])
+
+
 def render(still: Image.Image, skeleton, direction: str, motion: str,
            keypoints: list | None = None) -> list[Image.Image]:
     """All frames of one motion for one direction (left is a mirrored right).
 
     Pass a list as `keypoints` to get, per frame, the 18 posed OpenPose points
-    in frame pixels (None for frames whose body is tipped over, where the
-    skeleton no longer matches). Not available for "left".
+    in frame pixels, tipped over with the body when it falls. Not available
+    for "left".
     """
     view = "right" if direction == "left" else direction
     make_poses, _, big = MOTIONS[motion]
@@ -270,10 +279,8 @@ def render(still: Image.Image, skeleton, direction: str, motion: str,
     frames = []
     for i, pose in enumerate(make_poses(view)):
         body, world = rig.render(pose)
-        if keypoints is not None:
-            keypoints.append(None if pose.get("fall") else [
-                None if p is None else tuple(rig.point(world, KEYPOINT_BONE[k], k))
-                for k, p in enumerate(rig.pts[j] for j in range(18))])
+        pts = [None if p is None else tuple(rig.point(world, KEYPOINT_BONE[k], k))
+               for k, p in enumerate(rig.pts[j] for j in range(18))]
         if pose.get("glow"):
             body = fx.tint(body, fx.MAGIC[1], pose["glow"])
         if pose.get("flash"):
@@ -287,13 +294,20 @@ def render(still: Image.Image, skeleton, direction: str, motion: str,
         if pose.get("fall"):
             # Profiles fall on their face; front and back views topple sideways.
             x0, _, x1, y1 = fx.box(body)
-            body = fx.rotate(body, -pose["fall"], ((x0 + x1) / 2, y1))
+            pivot = ((x0 + x1) / 2, y1)
+            body = fx.rotate(body, -pose["fall"], pivot)
             # Slide toward the middle while falling so the body stays in frame.
-            x0, _, x1, _ = fx.box(body)
+            x0, y0, x1, _ = fx.box(body)
             k = min(1.0, abs(pose["fall"]) / 90)
             center = (x0 + x1) / 2 * (1 - k) + size / 2 * k
             floor = rig.floor - (1 if pose.get("bounce") else 0)
             body = fx.ground(body, floor, center)
+            nx0, ny0, _, _ = fx.box(body)
+            # The skeleton tips over and slides with the body.
+            pts = [None if p is None else
+                   _turn(p, pose["fall"], pivot, (nx0 - x0, ny0 - y0)) for p in pts]
+        if keypoints is not None:
+            keypoints.append(pts)
         if pose.get("dark"):
             body = fx.darken(body)
         frames.append(body)
