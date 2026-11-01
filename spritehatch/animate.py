@@ -114,8 +114,10 @@ def main(argv=None) -> None:
             save_gif(frames, out / f"{name}_{d}.gif", ms, hold=HOLD.get(name))
         result["motions"][name] = {"file": f"{name}.png", "frame": rows[0][0].width,
                                    "frames": len(rows[0]), "ms": ms}
+        # Saved after every motion, so a run that fails later (ComfyUI timing
+        # out) still leaves anim.json matching the sheets on disk.
+        index.write_text(json.dumps(result, indent=2))
 
-    index.write_text(json.dumps(result, indent=2))
     print(f"done: {out}")
 
 
