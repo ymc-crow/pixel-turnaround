@@ -7,11 +7,20 @@ side and back come out as different characters. spritehatch fixes that:
 
 1. **One canvas, all views.** The model paints every direction in a single
    image, so outfit and colors stay in sync.
-2. **Pose lock.** An OpenPose skeleton per view tells the model which way to face.
-3. **Mirror, don't redraw.** Left is a flipped right, so the two sides always match.
-4. **Real pixels.** The model's fake 8×8 "pixels" are snapped back to a true grid,
-   the background is removed, all views share one palette, and feet sit on the
-   same line.
+2. **Pose lock.** A chibi OpenPose skeleton per view (head about 40% of the
+   height) tells the model which way to face and leaves room for a face at 48px.
+3. **Mirror, don't redraw.** One side view is flipped into the other, so the
+   two always match. The side that still holds the weapon is the one kept.
+4. **Real pixels.** The drawing is shrunk to a 48px sprite: colors are picked
+   once for all views (small areas like a face get their own), each sprite
+   pixel takes a vote over its block (dark lines count extra, so eyes survive),
+   lone specks are removed and a 1px outline goes around. Feet sit on the same
+   line in every view.
+
+The default model is [Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo)
+(Apache-2.0) on a small 768x320 canvas: its fake pixels keep their size, so a
+small canvas gives about as many of them as a 48px sprite can hold, and it
+takes about 1.5 minutes on an M1 Pro.
 
 ![knight](examples/knight/preview.png)
 
@@ -58,22 +67,41 @@ and timing. Poses live in `spritehatch/moves.py`; add your own there.
 Limits: parts are cut from a single drawing, so an arm hidden behind the body
 in the side view stays thin, and a cape moves with the torso.
 
-Asking the model to draw the frames was tried first. With SDXL + OpenPoseXL2
-it ignored arm poses, changed the outfit between frames, and filled-in frames
-came out faded, so that path is not included.
+### `--redraw`: hand-drawn look
+
+```bash
+spritehatch-animate out/knight --motions walk --redraw
+```
+
+The rig frames become a rough draft that the model paints over:
+
+1. Four frames of one motion go into one 2x2 image, so they are painted
+   together and stay the same character.
+2. img2img starts from that draft (`--denoise 0.6`), and an OpenPose grid
+   built from the rig's posed joints keeps every limb where the motion wants it.
+3. Each cell is shrunk back like the stills and drawn only in the colors of
+   the standing sprite.
+
+Motions are cut to 4 frames (played slower, so they keep their length). About
+1.5 minutes per motion and direction on an M1 Pro. `--model sdxl` uses SDXL
+instead.
 
 ## Requirements
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally (default `http://127.0.0.1:8188`)
-- Models in ComfyUI:
+- Models in ComfyUI for the default Z-Image path (all Apache-2.0, about 23 GB):
+  - `diffusion_models/z_image_turbo_bf16.safetensors`, `text_encoders/qwen_3_4b.safetensors`,
+    `vae/z_image_ae.safetensors` — [Z-Image-Turbo, ComfyUI repack](https://huggingface.co/Comfy-Org/z_image_turbo)
+  - `model_patches/Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors` —
+    [Z-Image-Turbo Fun ControlNet Union](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1)
+  - `loras/pixel_art_style_z_image_turbo.safetensors` — [pixel art style LoRA](https://huggingface.co/tarn59/pixel_art_style_lora_z_image_turbo)
+- For `--model sdxl`:
   - `checkpoints/sd_xl_base_1.0.safetensors` — [SDXL base](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
   - `loras/pixel-art-xl.safetensors` — [Pixel Art XL](https://huggingface.co/nerijs/pixel-art-xl)
   - `controlnet/OpenPoseXL2.safetensors` — [OpenPoseXL2](https://huggingface.co/thibaud/controlnet-openpose-sdxl-1.0)
-- Python 3.9+
+- Python 3.9+ and a recent ComfyUI (Z-Image nodes)
 
-Any SDXL checkpoint / pixel LoRA / OpenPose ControlNet works; pass `--checkpoint`, `--lora`, `--controlnet`.
-
-**Hardware:** anything that runs SDXL. On an Apple M1 Pro (32 GB) one sheet takes about 3.5 minutes.
+**Hardware:** tested on an Apple M1 Pro (32 GB): one sheet about 1.5 minutes.
 
 ## Usage
 
@@ -98,9 +126,10 @@ Options:
 - `-d 4` (default): `down, left, right, up`
 - `-d 8` (**experimental**): adds diagonals. SDXL often turns three-quarter views
   into plain side views, so expect to try a few seeds.
-- `--size 48`: shrink to a fixed frame. Default `0` keeps the model's own pixel
-  size, which looks cleanest.
-- `--colors 24`: shared palette size.
+- `--size 48`: frame size. Default `0` means 48 (with `--model sdxl`: the
+  model's own pixel size).
+- `--colors 32`: shared palette size.
+- `--model sdxl`: the older SDXL path (bigger canvas, grid snapping).
 - `--seed N`: repeat a result.
 - `--from-raw raw.png`: re-cut an existing image without generating again.
 
