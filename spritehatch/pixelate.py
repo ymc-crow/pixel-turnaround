@@ -191,13 +191,13 @@ def nearest(rgb: np.ndarray, colors: np.ndarray) -> np.ndarray:
     return d.argmin(1)[inverse.ravel()].reshape(rgb.shape[:2])
 
 
-def main_body(fg: np.ndarray, keep: float = 0.02) -> np.ndarray:
-    """Drop specks floating away from the character (sparkles, dust): parts
-    smaller than `keep` of the biggest one go."""
-    label = np.zeros(fg.shape, np.int32)
+def _components(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Label 4-connected parts of a mask: (label image, size of each label);
+    label 0 is everything outside the mask."""
+    label = np.zeros(mask.shape, np.int32)
     sizes = [0]
-    h, w = fg.shape
-    for y0, x0 in zip(*np.nonzero(fg)):
+    h, w = mask.shape
+    for y0, x0 in zip(*np.nonzero(mask)):
         if label[y0, x0]:
             continue
         n = len(sizes)
@@ -207,12 +207,33 @@ def main_body(fg: np.ndarray, keep: float = 0.02) -> np.ndarray:
             y, x = stack.pop()
             size += 1
             for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-                if 0 <= yy < h and 0 <= xx < w and fg[yy, xx] and not label[yy, xx]:
+                if 0 <= yy < h and 0 <= xx < w and mask[yy, xx] and not label[yy, xx]:
                     label[yy, xx] = n
                     stack.append((yy, xx))
         sizes.append(size)
-    sizes = np.array(sizes)
+    return label, np.array(sizes)
+
+
+def main_body(fg: np.ndarray, keep: float = 0.02) -> np.ndarray:
+    """Drop specks floating away from the character (sparkles, dust): parts
+    smaller than `keep` of the biggest one go."""
+    label, sizes = _components(fg)
     return (sizes >= keep * sizes.max())[label] & fg
+
+
+def open_holes(cell: Image.Image, fg: np.ndarray, biggest: float = 0.004,
+               tolerance: float = 40) -> np.ndarray:
+    """Background caught between an arm and a staff is enclosed, so the flood
+    in background_mask never reaches it. Enclosed patches of background color
+    bigger than `biggest` of the cell are background too; smaller ones (eye
+    whites, shine) stay."""
+    rgb = np.asarray(cell.convert("RGB"), dtype=np.float32)
+    border = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
+    holes = fg & (np.linalg.norm(rgb - np.median(border, axis=0), axis=2) < tolerance)
+    label, sizes = _components(holes)
+    big = sizes > biggest * fg.size
+    big[0] = False
+    return fg & ~big[label]
 
 
 def _vote_shrink(q: np.ndarray, fg: np.ndarray, size: tuple[int, int], weight: np.ndarray):
@@ -277,7 +298,7 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
     """
     cut = []
     for cell in cells:
-        fg = main_body(~background_mask(cell))
+        fg = main_body(open_holes(cell, ~background_mask(cell)))
         x0, y0, x1, y1 = _bbox(fg)
         cut.append((np.asarray(cell.convert("RGB"))[y0:y1, x0:x1], fg[y0:y1, x0:x1], (x0, y0)))
     rgb_of = pick_colors(np.concatenate([rgb[m] for rgb, m, _ in cut]), colors, method)

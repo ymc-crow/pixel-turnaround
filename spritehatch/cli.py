@@ -6,6 +6,7 @@ import json
 import random
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageOps
 
 from .comfy import ComfyClient, turnaround_workflow, zimage_turnaround_workflow
@@ -38,6 +39,22 @@ def _skeleton(view: str, index: int, count: int, raw: Image.Image,
     return points
 
 
+def _pick_sides(mirror: dict, drawn: dict) -> dict:
+    """Which view of each mirrored pair to keep. When the model drew both, the
+    one with more drawn pixels wins: it is usually the one still holding the
+    weapon or staff the other forgot."""
+    out = {}
+    for view, source in mirror.items():
+        if view in drawn and _area(drawn[view]) > _area(drawn[source]):
+            view, source = source, view
+        out[view] = source
+    return out
+
+
+def _area(sprite: Image.Image) -> int:
+    return int((np.asarray(sprite)[..., 3] > 0).sum())
+
+
 def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
           character: str | None = None, model: str = "zimage") -> None:
     spec = MODES[mode]
@@ -54,7 +71,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
     skeletons = {v: _skeleton(v, i, count, raw, snapped, s)
                  for i, (v, s) in enumerate(zip(spec["draw"], sprites))}
     # Mirrors win over anything drawn for the same view.
-    for view, source in spec["mirror"].items():
+    for view, source in _pick_sides(spec["mirror"], drawn).items():
         drawn[view] = ImageOps.mirror(drawn[source])
         w = drawn[source].width
         skeletons[view] = [None if p is None else [round(w - p[0], 1), p[1]]
@@ -80,7 +97,7 @@ def main(argv=None) -> None:
     ap.add_argument("-d", "--directions", choices=sorted(MODES), default="4")
     ap.add_argument("--size", type=int, default=0,
                     help="frame size in pixels; 0 = 48 for zimage, the model's pixel size for sdxl")
-    ap.add_argument("--colors", type=int, default=24, help="shared palette size")
+    ap.add_argument("--colors", type=int, default=32, help="shared palette size")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--model", choices=["zimage", "sdxl"], default="zimage",
                     help="zimage (Z-Image-Turbo, default, ~1.5 min) or sdxl (~3 min)")

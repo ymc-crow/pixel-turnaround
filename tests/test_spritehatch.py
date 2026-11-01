@@ -210,3 +210,28 @@ def test_redraw_runs_on_every_model_workflow():
         out = redraw(frames, pts, still=side, character="knight", view="right",
                      motion="idle", client=_FakeComfy(), model=model)
         assert len(out) == len(frames)
+
+
+def test_mirror_keeps_the_side_view_that_drew_more():
+    from spritehatch.cli import _pick_sides
+
+    thin = Image.new("RGBA", (8, 8))
+    thin.putpixel((1, 1), (255, 0, 0, 255))
+    full = Image.new("RGBA", (8, 8), (0, 0, 255, 255))
+    assert _pick_sides({"left": "right"}, {"left": thin, "right": full}) == {"left": "right"}
+    assert _pick_sides({"left": "right"}, {"left": full, "right": thin}) == {"right": "left"}
+    assert _pick_sides({"left": "right"}, {"right": thin}) == {"left": "right"}
+
+
+def test_open_holes_frees_trapped_background_but_keeps_eye_whites():
+    from spritehatch.pixelate import open_holes
+
+    a = np.full((100, 100, 3), 255, np.uint8)
+    a[20:80, 20:80] = (40, 40, 160)          # body
+    a[30:60, 30:50] = 255                    # big gap caught inside
+    a[25:27, 60:62] = 255                    # tiny eye white
+    cell = Image.fromarray(a)
+    fg = open_holes(cell, ~background_mask(cell))
+    assert not fg[40, 40]
+    assert fg[25, 60]
+    assert fg[70, 70]
