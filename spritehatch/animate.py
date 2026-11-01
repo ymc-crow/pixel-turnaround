@@ -83,7 +83,10 @@ def main(argv=None) -> None:
     stills = {d: Image.open(src / "frames" / f"{d}.png").convert("RGBA") for d in ORDER}
     client = ComfyClient(args.server) if args.redraw else None
 
-    result = {"rows": ORDER, "motions": {}}
+    # Add to what an earlier run made, so motions can be made (or redrawn) a
+    # few at a time.
+    index = out / "anim.json"
+    result = json.loads(index.read_text()) if index.exists() else {"rows": ORDER, "motions": {}}
     for name in args.motions.split(","):
         if name not in MOTIONS:
             ap.error(f"unknown motion: {name}")
@@ -112,7 +115,7 @@ def main(argv=None) -> None:
         result["motions"][name] = {"file": f"{name}.png", "frame": rows[0][0].width,
                                    "frames": len(rows[0]), "ms": ms}
 
-    (out / "anim.json").write_text(json.dumps(result, indent=2))
+    index.write_text(json.dumps(result, indent=2))
     print(f"done: {out}")
 
 

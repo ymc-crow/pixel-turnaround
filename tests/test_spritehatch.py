@@ -255,3 +255,21 @@ def test_redraw_keeps_rig_frames_it_cannot_guide_or_lost():
     out = redraw(frames, pts, still=side, character="knight", view="right",
                  motion="death", client=Blank())
     assert [np.asarray(a).tobytes() for a in out] == [np.asarray(b).tobytes() for b in frames]
+
+
+def test_animate_adds_motions_to_an_earlier_run(tmp_path):
+    import json
+
+    from spritehatch.animate import ORDER, main
+
+    (tmp_path / "frames").mkdir()
+    skeleton = {}
+    for d in ORDER:
+        img, pts = _stick_figure("right" if d == "left" else d)
+        img.save(tmp_path / "frames" / f"{d}.png")
+        skeleton[d] = pts
+    (tmp_path / "sheet.json").write_text(json.dumps({"order": ORDER, "skeleton": skeleton}))
+    main([str(tmp_path), "--motions", "idle"])
+    main([str(tmp_path), "--motions", "walk"])
+    motions = json.loads((tmp_path / "anim" / "anim.json").read_text())["motions"]
+    assert set(motions) == {"idle", "walk"}
