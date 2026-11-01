@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 from PIL import Image, ImageDraw
 
 # Views the model draws. Mirrored views are then replaced by a flipped copy of
@@ -91,7 +92,25 @@ def _mirror(points):
     return out
 
 
+# Squash the tables above into game-sprite chibi: the head grows to about 40%
+# of the height and the body widens, so small sprites have room for a face.
+# (old y, new y) pairs: eyes, neck, shoulders, hips, knees, ankles.
+_CHIBI_Y = [(0.24, 0.27), (0.39, 0.47), (0.41, 0.49), (0.63, 0.69), (0.76, 0.79), (0.89, 0.89)]
+_CHIBI_X = 1.25
+
+
+def _chibi(points):
+    old, new = zip(*_CHIBI_Y)
+    return [None if p is None else
+            (0.5 + (p[0] - 0.5) * _CHIBI_X, float(np.interp(p[1], old, new)))
+            for p in points]
+
+
 def keypoints(view: str):
+    return _chibi(_keypoints(view))
+
+
+def _keypoints(view: str):
     if view == "up":
         # Seen from behind: sides swap and the face disappears.
         back = _mirror(_FRONT)
