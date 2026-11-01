@@ -120,17 +120,21 @@ def zimage_redraw_workflow(
     unet: str = "z_image_turbo_bf16.safetensors",
     text_encoder: str = "qwen_3_4b.safetensors",
     vae: str = "z_image_ae.safetensors",
-    lora: str = "pixel_art_style_z_image_turbo.safetensors",
+    lora: str | None = None,
     lora_strength: float = 1.0,
     controlnet: str = "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors",
     control_strength: float = 0.8,
 ) -> dict:
-    """Same job as redraw_workflow on Z-Image-Turbo (Apache-2.0), 8 steps, no CFG."""
-    return {
+    """Same job as redraw_workflow on Z-Image-Turbo (Apache-2.0), 8 steps, no CFG.
+
+    No LoRA by default: plain Z-Image already draws pixel art when asked, and
+    follows the description more closely (a pixel-art LoRA was tried and lost
+    details like a bandana). A LoRA also makes ComfyUI keep a second copy of
+    the weights it changes, which a 32 GB Mac does not have room for.
+    """
+    wf = {
         "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": unet, "weight_dtype": "default"}},
-        "lora": {"class_type": "LoraLoaderModelOnly", "inputs": {
-            "lora_name": lora, "strength_model": lora_strength, "model": ["unet", 0]}},
-        "shift": {"class_type": "ModelSamplingAuraFlow", "inputs": {"shift": 3.0, "model": ["lora", 0]}},
+        "shift": {"class_type": "ModelSamplingAuraFlow", "inputs": {"shift": 3.0, "model": ["unet", 0]}},
         "clip": {"class_type": "CLIPLoader", "inputs": {
             "clip_name": text_encoder, "type": "lumina2", "device": "default"}},
         "vae": {"class_type": "VAELoader", "inputs": {"vae_name": vae}},
@@ -152,6 +156,11 @@ def zimage_redraw_workflow(
         "save": {"class_type": "SaveImage", "inputs": {"filename_prefix": "redraw_zimage",
                                                       "images": ["decode", 0]}},
     }
+    if lora:
+        wf["lora"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "lora_name": lora, "strength_model": lora_strength, "model": ["unet", 0]}}
+        wf["shift"]["inputs"]["model"] = ["lora", 0]
+    return wf
 
 
 WORKFLOWS = {"sdxl": redraw_workflow, "zimage": zimage_redraw_workflow}

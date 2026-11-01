@@ -97,12 +97,11 @@ uses SDXL instead.
 ## Requirements
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally (default `http://127.0.0.1:8188`)
-- Models in ComfyUI for the default Z-Image path (all Apache-2.0, about 23 GB):
+- Models in ComfyUI for the default Z-Image path (all Apache-2.0, about 22 GB):
   - `diffusion_models/z_image_turbo_bf16.safetensors`, `text_encoders/qwen_3_4b.safetensors`,
     `vae/z_image_ae.safetensors` — [Z-Image-Turbo, ComfyUI repack](https://huggingface.co/Comfy-Org/z_image_turbo)
   - `model_patches/Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors` —
     [Z-Image-Turbo Fun ControlNet Union](https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1)
-  - `loras/pixel_art_style_z_image_turbo.safetensors` — [pixel art style LoRA](https://huggingface.co/tarn59/pixel_art_style_lora_z_image_turbo)
 - For `--model sdxl`:
   - `checkpoints/sd_xl_base_1.0.safetensors` — [SDXL base](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0)
   - `loras/pixel-art-xl.safetensors` — [Pixel Art XL](https://huggingface.co/nerijs/pixel-art-xl)

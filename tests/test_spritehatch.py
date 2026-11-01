@@ -314,3 +314,12 @@ def test_scale2x_doubles_and_smooths_a_diagonal():
     red = b[..., 0] == 255
     assert red[1, 2] and red[2, 1]             # the gap between the blocks is filled
     assert not red[0, 3] and not red[3, 0]     # the far corners stay empty
+
+
+def test_zimage_uses_no_lora_unless_asked():
+    from spritehatch.comfy import zimage_redraw_workflow
+
+    plain = zimage_redraw_workflow("knight", "a.png", "b.png")
+    assert "lora" not in plain and plain["shift"]["inputs"]["model"] == ["unet", 0]
+    styled = zimage_redraw_workflow("knight", "a.png", "b.png", lora="pixel.safetensors")
+    assert styled["shift"]["inputs"]["model"] == ["lora", 0]
