@@ -25,6 +25,7 @@ from .pose import VIEW_WORDS, draw_cell
 # so a small cell gives few, big ones, close to what a 48px frame can hold
 # (and it is much faster than SDXL's own 1024x1024).
 CELL = 384
+GRID_MAX = 1024
 GROUP = 4
 
 
@@ -35,7 +36,9 @@ def cell_size(frame: int, body: int | None = None) -> int:
     `body` is the standing sprite's size. Attack and death use a bigger frame
     around the same body; scaling by the body keeps the character painted at
     the same size (a smaller painting comes out darker and blurrier)."""
-    return frame * max(1, CELL // (body or frame))
+    # ...but keep the 2x2 grid at about a megapixel; bigger ones run this
+    # machine out of memory.
+    return frame * max(1, min(CELL // (body or frame), GRID_MAX // (2 * frame)))
 
 PROMPT = (
     "pixel art, sprite sheet, {n} animation frames of the same character {action}, "

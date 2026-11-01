@@ -277,11 +277,12 @@ def test_animate_adds_motions_to_an_earlier_run(tmp_path):
 
 
 def test_cells_keep_the_body_the_same_size_in_bigger_frames():
-    from spritehatch.redraw import cell_size
+    from spritehatch.redraw import GRID_MAX, cell_size
 
     walk, attack = cell_size(48, 48), cell_size(72, 48)
     assert walk % 48 == 0 and attack % 72 == 0
-    assert attack / 72 == walk / 48       # same zoom, so the body is painted as big
+    assert attack / 72 >= walk / 48 - 1   # about the same zoom: the body is painted as big
+    assert 2 * attack <= GRID_MAX         # but the grid stays small enough to fit in memory
 
 
 def test_showcase_has_a_row_per_motion(tmp_path):
