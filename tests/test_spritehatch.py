@@ -282,3 +282,22 @@ def test_cells_keep_the_body_the_same_size_in_bigger_frames():
     walk, attack = cell_size(48, 48), cell_size(72, 48)
     assert walk % 48 == 0 and attack % 72 == 0
     assert attack / 72 == walk / 48       # same zoom, so the body is painted as big
+
+
+def test_showcase_has_a_row_per_motion(tmp_path):
+    import json
+
+    from spritehatch.animate import ORDER, main
+    from spritehatch.showcase import showcase
+
+    (tmp_path / "frames").mkdir()
+    skeleton = {}
+    for d in ORDER:
+        img, pts = _stick_figure("right" if d == "left" else d)
+        img.save(tmp_path / "frames" / f"{d}.png")
+        skeleton[d] = pts
+    (tmp_path / "sheet.json").write_text(json.dumps({"order": ORDER, "skeleton": skeleton}))
+    main([str(tmp_path), "--motions", "idle,death"])
+    frames = showcase(tmp_path / "anim", zoom=1)
+    big = 120                                # death's frame, 1.5x the 80px sprite
+    assert frames[0].size == (big * 3, big * 2)
