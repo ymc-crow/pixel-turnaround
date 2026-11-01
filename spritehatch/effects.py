@@ -97,14 +97,40 @@ def darken(img: Image.Image, amount: float = 0.6) -> Image.Image:
     return Image.fromarray(a.astype(np.uint8))
 
 
+def scale2x(a: np.ndarray) -> np.ndarray:
+    """Double a pixel-art image with the Scale2x (EPX) rule: corners follow
+    matching neighbors, so diagonal edges stay smooth instead of turning into
+    stairs of big blocks."""
+    key = a.view(np.uint32)[..., 0]          # one number per RGBA pixel
+    p = np.pad(key, 1, mode="edge")
+    up, down, left, right = p[:-2, 1:-1], p[2:, 1:-1], p[1:-1, :-2], p[1:-1, 2:]
+    out = np.repeat(np.repeat(a, 2, axis=0), 2, axis=1)
+    ap = np.pad(a, ((1, 1), (1, 1), (0, 0)), mode="edge")
+    src = {"up": ap[:-2, 1:-1], "down": ap[2:, 1:-1], "left": ap[1:-1, :-2], "right": ap[1:-1, 2:]}
+    rules = [  # (output corner, condition, neighbor it copies)
+        ((0, 0), (left == up) & (left != down) & (up != right), "up"),
+        ((0, 1), (up == right) & (up != left) & (right != down), "right"),
+        ((1, 0), (down == left) & (down != right) & (left != up), "left"),
+        ((1, 1), (right == down) & (right != up) & (down != left), "down"),
+    ]
+    for (dy, dx), cond, name in rules:
+        view = out[dy::2, dx::2]
+        view[cond] = src[name][cond]
+    return out
+
+
 def rotate(img: Image.Image, deg: float, pivot) -> Image.Image:
-    """Pixel-art friendly rotation: rotate at 4x, then sample pixel centers.
+    """Pixel-art friendly rotation (the RotSprite idea): grow 8x with Scale2x,
+    rotate with nearest sampling, then read back one pixel per 8x8 block.
 
     Positive degrees turn counterclockwise on screen.
     """
-    k = 4
-    big = img.resize((img.width * k, img.height * k), Image.NEAREST)
-    big = big.rotate(deg, resample=Image.NEAREST, center=(pivot[0] * k, pivot[1] * k))
+    k = 8
+    big = np.ascontiguousarray(np.asarray(img.convert("RGBA")))
+    for _ in range(3):
+        big = scale2x(big)
+    big = Image.fromarray(big).rotate(deg, resample=Image.NEAREST,
+                                      center=(pivot[0] * k, pivot[1] * k))
     return Image.fromarray(np.ascontiguousarray(np.asarray(big)[k // 2::k, k // 2::k]))
 
 
