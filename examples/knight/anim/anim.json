@@ -8,33 +8,33 @@
   "motions": {
     "idle": {
       "file": "idle.png",
-      "frame": 80,
+      "frame": 48,
       "frames": 4,
       "ms": 220
     },
     "walk": {
       "file": "walk.png",
-      "frame": 80,
-      "frames": 8,
-      "ms": 100
+      "frame": 48,
+      "frames": 4,
+      "ms": 200
     },
     "attack": {
       "file": "attack.png",
-      "frame": 120,
-      "frames": 8,
-      "ms": 70
+      "frame": 72,
+      "frames": 4,
+      "ms": 140
     },
     "cast": {
       "file": "cast.png",
-      "frame": 120,
+      "frame": 72,
       "frames": 8,
       "ms": 100
     },
     "death": {
       "file": "death.png",
-      "frame": 120,
-      "frames": 8,
-      "ms": 110
+      "frame": 72,
+      "frames": 4,
+      "ms": 220
     }
   }
 }

@@ -63,7 +63,7 @@ def main(argv=None) -> None:
                     help="comma separated: " + ", ".join(MOTIONS))
     ap.add_argument("--redraw", action="store_true",
                     help="let the model paint over the rig frames, 4 per motion (needs ComfyUI, "
-                         "about 1.5 min per motion and direction on an M1 Pro)")
+                         "on an M1 Pro about 1.5 min per direction for walk, 6 for attack)")
     ap.add_argument("--denoise", type=float, default=0.6,
                     help="how much --redraw may change (0.6 keeps the look; higher drifts)")
     ap.add_argument("--model", choices=sorted(WORKFLOWS), default="zimage",

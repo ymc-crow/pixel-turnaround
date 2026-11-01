@@ -24,7 +24,8 @@ takes about 1.5 minutes on an M1 Pro.
 
 ![knight](examples/knight/preview.png)
 
-Raw model output for that sheet: [examples/knight/raw.png](examples/knight/raw.png)
+Made with `spritehatch "cute little knight, shiny bright silver armor, blue cape, red
+plume on the helmet" --seed 7`. Raw model output: [examples/knight/raw.png](examples/knight/raw.png)
 
 ## Motions
 
@@ -34,6 +35,9 @@ spritehatch-animate out/knight --motions attack,death
 ```
 
 ![motions](examples/knight/anim/showcase.gif)
+
+(idle and cast straight from the rig; walk, attack and death painted over with
+`--redraw`, see below)
 
 The model was asked to follow a pose skeleton, and that skeleton is saved in
 `sheet.json`. `spritehatch-animate` uses it as a 2D bone rig, the way Spine or
@@ -67,6 +71,9 @@ and timing. Poses live in `spritehatch/moves.py`; add your own there.
 Limits: parts are cut from a single drawing, so an arm hidden behind the body
 in the side view stays thin, and a cape moves with the torso.
 
+`python -m spritehatch.showcase out/knight/anim` puts every motion into one
+GIF like the one above.
+
 ### `--redraw`: hand-drawn look
 
 ```bash
@@ -82,9 +89,10 @@ The rig frames become a rough draft that the model paints over:
 3. Each cell is shrunk back like the stills and drawn only in the colors of
    the standing sprite.
 
-Motions are cut to 4 frames (played slower, so they keep their length). About
-1.5 minutes per motion and direction on an M1 Pro. `--model sdxl` uses SDXL
-instead.
+Motions are cut to 4 frames (played slower, so they keep their length). On an
+M1 Pro: about 1.5 minutes per direction for walk and idle, about 6 for attack,
+cast and death (their bigger frame makes a bigger painting). `--model sdxl`
+uses SDXL instead.
 
 ## Requirements
 
@@ -139,6 +147,10 @@ Options:
   real 3D step (image → 3D model → render), which this tool does not do.
 - The model sometimes mixes small details between views (a plume here, a belt
   there). Re-roll the seed.
+- Weapons: `attack` draws its own sword. If the description already gives the
+  character one, there are two; leave the weapon out of the description.
+- `--redraw` paints lying-down bodies poorly, so the last frames of `death`
+  look rougher than the rest.
 
 ## License
 
