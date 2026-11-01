@@ -79,6 +79,83 @@ class ComfyClient:
         return Image.open(io.BytesIO(self._get(f"/view?{q}"))).convert("RGB")
 
 
+def redraw_workflow(
+    prompt: str,
+    init_image: str,
+    pose_image: str,
+    *,
+    denoise: float = 0.6,
+    seed: int = 0,
+    steps: int = 30,
+    cfg: float = 7.0,
+    checkpoint: str = "sd_xl_base_1.0.safetensors",
+    lora: str = "pixel-art-xl.safetensors",
+    lora_strength: float = 1.2,
+    controlnet: str = "OpenPoseXL2.safetensors",
+    control_strength: float = 0.9,
+) -> dict:
+    """Paint over rough frames: img2img from `init_image`, posed by `pose_image`."""
+    wf = turnaround_workflow(
+        "", pose_image, [], seed=seed, steps=steps, cfg=cfg, checkpoint=checkpoint,
+        lora=lora, lora_strength=lora_strength, controlnet=controlnet,
+        control_strength=control_strength)
+    wf["pos"]["inputs"]["text"] = prompt
+    del wf["latent"]
+    wf["init"] = {"class_type": "LoadImage", "inputs": {"image": init_image}}
+    wf["enc"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["init", 0], "vae": ["ckpt", 2]}}
+    wf["sample"]["inputs"].update(denoise=denoise, latent_image=["enc", 0])
+    wf["save"]["inputs"]["filename_prefix"] = "redraw"
+    return wf
+
+
+def zimage_redraw_workflow(
+    prompt: str,
+    init_image: str,
+    pose_image: str,
+    *,
+    denoise: float = 0.6,
+    seed: int = 0,
+    steps: int = 8,
+    unet: str = "z_image_turbo_bf16.safetensors",
+    text_encoder: str = "qwen_3_4b.safetensors",
+    vae: str = "z_image_ae.safetensors",
+    lora: str = "pixel_art_style_z_image_turbo.safetensors",
+    lora_strength: float = 1.0,
+    controlnet: str = "Z-Image-Turbo-Fun-Controlnet-Union-2.1-lite-2602-8steps.safetensors",
+    control_strength: float = 0.8,
+) -> dict:
+    """Same job as redraw_workflow on Z-Image-Turbo (Apache-2.0), 8 steps, no CFG."""
+    return {
+        "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": unet, "weight_dtype": "default"}},
+        "lora": {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "lora_name": lora, "strength_model": lora_strength, "model": ["unet", 0]}},
+        "shift": {"class_type": "ModelSamplingAuraFlow", "inputs": {"shift": 3.0, "model": ["lora", 0]}},
+        "clip": {"class_type": "CLIPLoader", "inputs": {
+            "clip_name": text_encoder, "type": "lumina2", "device": "default"}},
+        "vae": {"class_type": "VAELoader", "inputs": {"vae_name": vae}},
+        "pos": {"class_type": "CLIPTextEncode", "inputs": {
+            "text": "Pixel art style. " + prompt, "clip": ["clip", 0]}},
+        "neg": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["pos", 0]}},
+        "patch": {"class_type": "ModelPatchLoader", "inputs": {"name": controlnet}},
+        "pose": {"class_type": "LoadImage", "inputs": {"image": pose_image}},
+        "cn": {"class_type": "ZImageFunControlnet", "inputs": {
+            "model": ["shift", 0], "model_patch": ["patch", 0], "vae": ["vae", 0],
+            "strength": control_strength, "image": ["pose", 0]}},
+        "init": {"class_type": "LoadImage", "inputs": {"image": init_image}},
+        "enc": {"class_type": "VAEEncode", "inputs": {"pixels": ["init", 0], "vae": ["vae", 0]}},
+        "sample": {"class_type": "KSampler", "inputs": {
+            "seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "res_multistep",
+            "scheduler": "simple", "denoise": denoise, "model": ["cn", 0],
+            "positive": ["pos", 0], "negative": ["neg", 0], "latent_image": ["enc", 0]}},
+        "decode": {"class_type": "VAEDecode", "inputs": {"samples": ["sample", 0], "vae": ["vae", 0]}},
+        "save": {"class_type": "SaveImage", "inputs": {"filename_prefix": "redraw_zimage",
+                                                      "images": ["decode", 0]}},
+    }
+
+
+WORKFLOWS = {"sdxl": redraw_workflow, "zimage": zimage_redraw_workflow}
+
+
 def turnaround_workflow(
     character: str,
     pose_image: str,

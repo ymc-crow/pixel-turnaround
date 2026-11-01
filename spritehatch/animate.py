@@ -2,8 +2,11 @@
 
 The standing sprite is cut into body parts along the pose skeleton saved in
 sheet.json, and every motion bends those parts at the joints (see rig.py and
-moves.py). Nothing is redrawn, so every frame keeps the exact look and colors
-of the original. Sword, slash trail and magic are drawn on top as pixels.
+moves.py). Sword, slash trail and magic are drawn on top as pixels.
+
+By default nothing is redrawn, so every frame keeps the exact look and colors
+of the original. --redraw lets the model paint over those frames (redraw.py)
+so they look hand drawn; it needs ComfyUI.
 
 idle:   breathing, arms sway a little
 walk:   8 frames, legs swing with bending knees, arms swing opposite
@@ -19,12 +22,16 @@ import argparse
 import json
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
+from .comfy import WORKFLOWS, ComfyClient
 from .moves import MOTIONS, render
 from .pixelate import preview, sheet
+from .redraw import GROUP, every_nth, redraw
 
 ORDER = ["down", "left", "right", "up"]
+# Played once, so they must keep their first and last frame when thinned.
+ONE_SHOT = {"attack", "cast", "death"}
 # Last frame of these stays up longer in the preview GIFs.
 HOLD = {"death": 1200}
 
@@ -54,6 +61,15 @@ def main(argv=None) -> None:
     ap.add_argument("sheet_dir", type=Path, help="output folder of spritehatch (-d 4)")
     ap.add_argument("--motions", default=",".join(MOTIONS),
                     help="comma separated: " + ", ".join(MOTIONS))
+    ap.add_argument("--redraw", action="store_true",
+                    help="let the model paint over the rig frames, 4 per motion (needs ComfyUI, "
+                         "about 3 min per motion and direction on an M1 Pro)")
+    ap.add_argument("--denoise", type=float, default=0.6,
+                    help="how much --redraw may change (0.6 keeps the look; higher drifts)")
+    ap.add_argument("--model", choices=sorted(WORKFLOWS), default="zimage",
+                    help="model --redraw paints with: zimage (Z-Image-Turbo, best, ~5 min per motion and direction) or sdxl (~3 min)")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--server", default="http://127.0.0.1:8188")
     args = ap.parse_args(argv)
 
     src = args.sheet_dir
@@ -65,6 +81,7 @@ def main(argv=None) -> None:
     out = src / "anim"
     out.mkdir(exist_ok=True)
     stills = {d: Image.open(src / "frames" / f"{d}.png").convert("RGBA") for d in ORDER}
+    client = ComfyClient(args.server) if args.redraw else None
 
     result = {"rows": ORDER, "motions": {}}
     for name in args.motions.split(","):
@@ -72,8 +89,23 @@ def main(argv=None) -> None:
             ap.error(f"unknown motion: {name}")
         _, ms, _ = MOTIONS[name]
         # Left is drawn from the right-facing sprite and flipped.
-        rows = [render(stills["right" if d == "left" else d],
-                       meta["skeleton"]["right" if d == "left" else d], d, name) for d in ORDER]
+        drawn = {}
+        for d in ("down", "right", "up"):
+            pts: list = []
+            frames = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts)
+            if client:
+                # One 2x2 grid holds the whole motion, so all frames get painted
+                # together and stay the same character (two grids drift apart).
+                last = name in ONE_SHOT
+                frames, pts = every_nth(frames, GROUP, last), every_nth(pts, GROUP, last)
+                frames = redraw(frames, pts, still=stills[d], character=meta.get("character", ""),
+                                view=d, motion=name, client=client,
+                                denoise=args.denoise, seed=args.seed, model=args.model)
+            drawn[d] = frames
+        drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
+        rows = [drawn[d] for d in ORDER]
+        # Fewer frames play slower, so the motion keeps its length.
+        ms = round(ms * len(MOTIONS[name][0]("right")) / len(rows[0]))
         stack(rows).save(out / f"{name}.png")
         for d, frames in zip(ORDER, rows):
             save_gif(frames, out / f"{name}_{d}.gif", ms, hold=HOLD.get(name))

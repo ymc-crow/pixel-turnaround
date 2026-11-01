@@ -120,3 +120,64 @@ def test_render_reports_posed_keypoints_that_follow_the_limbs():
     dead: list = []
     render(side, side_pts, "right", "death", keypoints=dead)
     assert dead[-1] is None         # body tipped over: no skeleton for that frame
+
+
+class _FakeComfy:
+    """Stands in for ComfyUI: 'paints' by returning the draft unchanged."""
+
+    def __init__(self):
+        self.uploads, self.runs = {}, 0
+
+    def upload_image(self, img, name):
+        self.uploads[name] = img
+        return name
+
+    def run(self, wf):
+        self.runs += 1
+        assert wf["sample"]["inputs"]["latent_image"] == ["enc", 0]
+        return [self.uploads[wf["init"]["inputs"]["image"]]]
+
+
+def test_redraw_paints_four_frames_per_grid_and_keeps_size_and_palette():
+    from spritehatch.moves import render
+    from spritehatch.redraw import build_grids, cell_size, redraw
+
+    side, side_pts = _stick_figure("right")
+    pts: list = []
+    frames = render(side, side_pts, "right", "walk", keypoints=pts)
+    draft, pose = build_grids(frames[:4], pts[:4])
+    assert draft.size == pose.size == (cell_size(80) * 2,) * 2 == (960, 960)
+    assert np.asarray(pose).any()
+
+    fake = _FakeComfy()
+    out = redraw(frames, pts, still=side, character="knight", view="right",
+                 motion="walk", client=fake)
+    assert fake.runs == 2           # 8 frames -> two 2x2 grids
+    assert [f.size for f in out] == [f.size for f in frames]
+    src = {tuple(c) for c in np.asarray(side)[np.asarray(side)[..., 3] > 0][:, :3]}
+    for f in out:
+        a = np.asarray(f)
+        used = {tuple(c) for c in a[a[..., 3] > 0][:, :3]}
+        assert used and used <= src  # only colors of the original sprite
+
+
+def test_every_nth_picks_evenly_spaced_frames():
+    from spritehatch.redraw import every_nth
+
+    assert every_nth(list(range(8)), 4) == [0, 2, 4, 6]
+    assert every_nth([1, 2, 3], 4) == [1, 2, 3]
+    assert every_nth(list(range(8)), 4, keep_last=True) == [0, 2, 5, 7]
+
+
+def test_redraw_runs_on_every_model_workflow():
+    from spritehatch.comfy import WORKFLOWS
+    from spritehatch.moves import render
+    from spritehatch.redraw import redraw
+
+    side, side_pts = _stick_figure("right")
+    pts: list = []
+    frames = render(side, side_pts, "right", "idle", keypoints=pts)
+    for model in WORKFLOWS:
+        out = redraw(frames, pts, still=side, character="knight", view="right",
+                     motion="idle", client=_FakeComfy(), model=model)
+        assert len(out) == len(frames)
