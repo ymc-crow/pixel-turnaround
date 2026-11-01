@@ -70,7 +70,8 @@ class ComfyClient:
                 return [self._fetch(img) for out in entry["outputs"].values()
                         for img in out.get("images", [])]
             time.sleep(2)
-        raise TimeoutError(f"ComfyUI did not finish within {self.timeout}s")
+        raise TimeoutError(f"ComfyUI did not finish within {self.timeout}s. If it is "
+                           "swapping on a Mac, restart it with --gpu-only.")
 
     def _fetch(self, meta: dict) -> Image.Image:
         q = urllib.parse.urlencode(

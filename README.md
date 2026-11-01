@@ -110,6 +110,9 @@ uses SDXL instead.
 - Python 3.9+ and a recent ComfyUI (Z-Image nodes)
 
 **Hardware:** tested on an Apple M1 Pro (32 GB): one sheet about 1.5 minutes.
+On a Mac, start ComfyUI with `python main.py --gpu-only`. Without it ComfyUI
+keeps a CPU and a GPU copy of the models (about 27 GB for Z-Image), the Mac
+starts swapping, and a sheet that takes 2 minutes can take over 15.
 
 ## Usage
 
