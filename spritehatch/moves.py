@@ -57,7 +57,9 @@ def idle(view: str) -> list[dict]:
 def walk(view: str) -> list[dict]:
     poses = []
     for i in range(8):
-        t = 2 * math.pi * i / 8
+        # Start on a full stride, so frames 0, 2, 4, 6 are the four key poses
+        # of a 4-frame walk: right step, passing, left step, passing.
+        t = 2 * math.pi * i / 8 + math.pi / 2
         s, c = math.sin(t), math.cos(t)
         if _side(view):
             poses.append({
@@ -243,8 +245,21 @@ def _magic(rig: Rig, world: dict, view: str, pose: dict, i: int):
     return back, front
 
 
-def render(still: Image.Image, skeleton, direction: str, motion: str) -> list[Image.Image]:
-    """All frames of one motion for one direction (left is a mirrored right)."""
+# OpenPose keypoint -> the bone whose movement carries it.
+KEYPOINT_BONE = {0: "head", 14: "head", 15: "head", 16: "head", 17: "head",
+                 1: "torso", 2: "torso", 5: "torso", 3: "arm_r", 4: "hand_r",
+                 6: "arm_l", 7: "hand_l", 8: "hips", 9: "leg_r", 10: "foot_r",
+                 11: "hips", 12: "leg_l", 13: "foot_l"}
+
+
+def render(still: Image.Image, skeleton, direction: str, motion: str,
+           keypoints: list | None = None) -> list[Image.Image]:
+    """All frames of one motion for one direction (left is a mirrored right).
+
+    Pass a list as `keypoints` to get, per frame, the 18 posed OpenPose points
+    in frame pixels (None for frames whose body is tipped over, where the
+    skeleton no longer matches). Not available for "left".
+    """
     view = "right" if direction == "left" else direction
     make_poses, _, big = MOTIONS[motion]
     size = canvas_size(still.width) if big else still.width
@@ -253,6 +268,10 @@ def render(still: Image.Image, skeleton, direction: str, motion: str) -> list[Im
     frames = []
     for i, pose in enumerate(make_poses(view)):
         body, world = rig.render(pose)
+        if keypoints is not None:
+            keypoints.append(None if pose.get("fall") else [
+                None if p is None else tuple(rig.point(world, KEYPOINT_BONE[k], k))
+                for k, p in enumerate(rig.pts[j] for j in range(18))])
         if pose.get("glow"):
             body = fx.tint(body, fx.MAGIC[1], pose["glow"])
         if pose.get("flash"):

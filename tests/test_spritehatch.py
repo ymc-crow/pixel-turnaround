@@ -105,3 +105,18 @@ def test_every_motion_renders_in_every_direction():
     lying = render(side, side_pts, "right", "death")[-1]
     ys, xs = np.nonzero(np.asarray(lying)[..., 3] > 0)
     assert np.ptp(xs) > np.ptp(ys)
+
+
+def test_render_reports_posed_keypoints_that_follow_the_limbs():
+    from spritehatch.moves import render
+
+    side, side_pts = _stick_figure("right")
+    pts: list = []
+    frames = render(side, side_pts, "right", "walk", keypoints=pts)
+    assert len(pts) == len(frames)
+    ankles = {round(p[10][0]) for p in pts}
+    assert len(ankles) > 1          # the right ankle moves through the stride
+    assert all(len(p) == 18 for p in pts)
+    dead: list = []
+    render(side, side_pts, "right", "death", keypoints=dead)
+    assert dead[-1] is None         # body tipped over: no skeleton for that frame
