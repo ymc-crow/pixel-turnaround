@@ -1,9 +1,9 @@
-# pixel-turnaround
+# spritehatch
 
 One pixel-art character, every direction, **same look**.
 
 Plain text-to-image draws each direction as a separate picture, so the front,
-side and back come out as different characters. pixel-turnaround fixes that:
+side and back come out as different characters. spritehatch fixes that:
 
 1. **One canvas, all views.** The model paints every direction in a single
    image, so outfit and colors stay in sync.
@@ -20,14 +20,14 @@ Raw model output for that sheet: [examples/knight/raw.png](examples/knight/raw.p
 ## Motions
 
 ```bash
-pixel-animate out/knight            # idle, walk, attack, cast, death
-pixel-animate out/knight --motions attack,death
+spritehatch-animate out/knight            # idle, walk, attack, cast, death
+spritehatch-animate out/knight --motions attack,death
 ```
 
 ![motions](examples/knight/anim/showcase.gif)
 
 The model was asked to follow a pose skeleton, and that skeleton is saved in
-`sheet.json`. `pixel-animate` uses it as a 2D bone rig, the way Spine or
+`sheet.json`. `spritehatch-animate` uses it as a 2D bone rig, the way Spine or
 DragonBones work:
 
 1. The standing sprite is cut into head, torso, pelvis, upper/lower arms and legs,
@@ -53,7 +53,7 @@ No GPU needed, it takes a second.
 `attack`, `cast` and `death` use a 1.5x bigger frame so the sword and the fall
 fit. Output in `out/knight/anim/`: one sheet per motion (rows: down, left,
 right, up), one GIF per motion and direction, and `anim.json` with frame sizes
-and timing. Poses live in `turnaround/moves.py`; add your own there.
+and timing. Poses live in `spritehatch/moves.py`; add your own there.
 
 Limits: parts are cut from a single drawing, so an arm hidden behind the body
 in the side view stays thin, and a cape moves with the torso.
@@ -79,8 +79,8 @@ Any SDXL checkpoint / pixel LoRA / OpenPose ControlNet works; pass `--checkpoint
 
 ```bash
 pip install -e .
-pixel-turnaround "cute little knight, silver armor, red cape" -o out/knight
-pixel-animate out/knight
+spritehatch "cute little knight, silver armor, red cape" -o out/knight
+spritehatch-animate out/knight
 ```
 
 Output in `out/knight/`:

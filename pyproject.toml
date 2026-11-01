@@ -1,5 +1,5 @@
 [project]
-name = "pixel-turnaround"
+name = "spritehatch"
 version = "0.1.0"
 description = "One pixel-art character, every direction, same look. Uses ComfyUI + SDXL + OpenPose."
 readme = "README.md"
@@ -11,11 +11,11 @@ dependencies = ["pillow>=10", "numpy>=1.24"]
 dev = ["pytest", "ruff"]
 
 [project.scripts]
-pixel-turnaround = "turnaround.cli:main"
-pixel-animate = "turnaround.animate:main"
+spritehatch = "spritehatch.cli:main"
+spritehatch-animate = "spritehatch.animate:main"
 
 [tool.setuptools]
-packages = ["turnaround"]
+packages = ["spritehatch"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

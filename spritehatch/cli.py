@@ -1,4 +1,4 @@
-"""pixel-turnaround: one character, every direction, same look."""
+"""spritehatch: one character, every direction, same look."""
 from __future__ import annotations
 
 import argparse
@@ -64,7 +64,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(prog="pixel-turnaround", description=__doc__)
+    ap = argparse.ArgumentParser(prog="spritehatch", description=__doc__)
     ap.add_argument("character", nargs="?", help='e.g. "little knight, silver armor, red cape"')
     ap.add_argument("-o", "--out", default="out", help="output folder")
     ap.add_argument("-d", "--directions", choices=sorted(MODES), default="4")

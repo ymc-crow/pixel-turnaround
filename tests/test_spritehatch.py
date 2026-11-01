@@ -1,8 +1,8 @@
 import numpy as np
 from PIL import Image
 
-from turnaround.pixelate import background_mask, snap_to_grid, to_sprites
-from turnaround.pose import MODES, keypoints, pose_sheet
+from spritehatch.pixelate import background_mask, snap_to_grid, to_sprites
+from spritehatch.pose import MODES, keypoints, pose_sheet
 
 
 def test_every_drawn_view_has_a_skeleton():
@@ -53,7 +53,7 @@ def _stick_figure(view="down", size=80):
     """A plain sprite drawn along the pose skeleton, plus that skeleton."""
     from PIL import ImageDraw
 
-    from turnaround.pose import LIMBS, keypoints
+    from spritehatch.pose import LIMBS, keypoints
 
     pts = [None if p is None else [p[0] * size, p[1] * size] for p in keypoints(view)]
     img = Image.new("RGBA", (size, size))
@@ -67,7 +67,7 @@ def _stick_figure(view="down", size=80):
 
 
 def test_rig_parts_cover_the_sprite_and_rest_pose_is_unchanged():
-    from turnaround.rig import Rig
+    from spritehatch.rig import Rig
 
     img, pts = _stick_figure()
     rig = Rig(img, pts, "down")
@@ -80,7 +80,7 @@ def test_rig_parts_cover_the_sprite_and_rest_pose_is_unchanged():
 
 
 def test_rig_bends_joints_and_keeps_feet_on_floor():
-    from turnaround.rig import Rig
+    from spritehatch.rig import Rig
 
     img, pts = _stick_figure("right")
     rig = Rig(img, pts, "right")
@@ -91,7 +91,7 @@ def test_rig_bends_joints_and_keeps_feet_on_floor():
 
 
 def test_every_motion_renders_in_every_direction():
-    from turnaround.moves import MOTIONS, canvas_size, render
+    from spritehatch.moves import MOTIONS, canvas_size, render
 
     img, pts = _stick_figure()
     side, side_pts = _stick_figure("right")

@@ -1,4 +1,4 @@
-"""pixel-animate: add motions to a sheet made by pixel-turnaround.
+"""spritehatch-animate: add motions to a sheet made by spritehatch.
 
 The standing sprite is cut into body parts along the pose skeleton saved in
 sheet.json, and every motion bends those parts at the joints (see rig.py and
@@ -49,9 +49,9 @@ def save_gif(frames: list[Image.Image], path: Path, ms: int, zoom: int = 6,
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(prog="pixel-animate", description=__doc__,
+    ap = argparse.ArgumentParser(prog="spritehatch-animate", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("sheet_dir", type=Path, help="output folder of pixel-turnaround (-d 4)")
+    ap.add_argument("sheet_dir", type=Path, help="output folder of spritehatch (-d 4)")
     ap.add_argument("--motions", default=",".join(MOTIONS),
                     help="comma separated: " + ", ".join(MOTIONS))
     args = ap.parse_args(argv)
@@ -61,7 +61,7 @@ def main(argv=None) -> None:
     if meta.get("order") != ORDER:
         ap.error("only 4-direction sheets are supported")
     if "skeleton" not in meta:
-        ap.error("sheet.json has no skeleton; re-cut it with pixel-turnaround --from-raw")
+        ap.error("sheet.json has no skeleton; re-cut it with spritehatch --from-raw")
     out = src / "anim"
     out.mkdir(exist_ok=True)
     stills = {d: Image.open(src / "frames" / f"{d}.png").convert("RGBA") for d in ORDER}
