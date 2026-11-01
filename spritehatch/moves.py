@@ -74,9 +74,9 @@ def walk(view: str) -> list[dict]:
         else:
             lift_r, lift_l = max(0.0, s), max(0.0, -s)
             poses.append({
-                # the stepping leg lifts a clear tenth of the body, knee first
-                "lift": {"leg_r": 0.06 * lift_r, "leg_l": 0.06 * lift_l,
-                         "foot_r": 0.04 * lift_r, "foot_l": 0.04 * lift_l},
+                # the stepping leg lifts about a sixth of the body, knee first
+                "lift": {"leg_r": 0.10 * lift_r, "leg_l": 0.10 * lift_l,
+                         "foot_r": 0.06 * lift_r, "foot_l": 0.06 * lift_l},
                 "arm_r": 4 + 8 * lift_l, "arm_l": 4 + 8 * lift_r,
                 "hand_r": 6, "hand_l": 6,
                 # the hip drops on the lifted side and the body sways over the
