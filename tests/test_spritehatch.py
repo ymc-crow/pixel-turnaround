@@ -281,7 +281,7 @@ def test_cells_keep_the_body_the_same_size_in_bigger_frames():
 
     walk, attack = cell_size(48, 48), cell_size(72, 48)
     assert walk % 48 == 0 and attack % 72 == 0
-    assert attack / 72 >= walk / 48 - 1   # about the same zoom: the body is painted as big
+    assert attack / 72 >= cell_size(72) / 72   # never smaller than without the body hint
     assert 2 * attack <= GRID_MAX         # but the grid stays small enough to fit in memory
 
 

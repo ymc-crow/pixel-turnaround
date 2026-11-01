@@ -90,9 +90,8 @@ The rig frames become a rough draft that the model paints over:
    the standing sprite.
 
 Motions are cut to 4 frames (played slower, so they keep their length). On an
-M1 Pro: about 1.5 minutes per direction for walk and idle, about 6 for attack,
-cast and death (their bigger frame makes a bigger painting). `--model sdxl`
-uses SDXL instead.
+M1 Pro: about 2-3 minutes per direction for every motion. `--model sdxl` uses
+SDXL instead.
 
 ## Requirements
 
