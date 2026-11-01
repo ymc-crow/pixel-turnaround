@@ -166,7 +166,7 @@ ZIMAGE_PROMPT = (
 
 
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
-                               width: int = 1536, height: int = 640, seed: int = 0,
+                               width: int = 768, height: int = 320, seed: int = 0,
                                steps: int = 8, control_strength: float = 0.8) -> dict:
     """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
     prompt = ZIMAGE_PROMPT.format(count=len(views), views=", ".join(views), character=character)
