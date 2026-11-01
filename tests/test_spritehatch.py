@@ -1,7 +1,7 @@
 import numpy as np
 from PIL import Image
 
-from spritehatch.pixelate import background_mask, snap_to_grid, to_sprites
+from spritehatch.pixelate import background_mask, downscale_sprites, snap_to_grid, to_sprites
 from spritehatch.pose import MODES, keypoints, pose_sheet
 
 
@@ -38,6 +38,35 @@ def test_sprites_share_scale_and_feet_line():
     heights = [np.nonzero(a.any(axis=1))[0] for a in alphas]
     assert heights[0][-1] == heights[1][-1]
     assert len(heights[0]) > len(heights[1])
+
+
+def test_downscale_keeps_scale_feet_line_eyes_and_adds_outline():
+    big = _figure(100)
+    a = np.asarray(big).copy()
+    a[30:34, 34:37] = (10, 10, 10)          # a small dark "eye" on the body
+    sprites = downscale_sprites([Image.fromarray(a), _figure(50, top=40)], size=32, colors=8)
+    assert all(s.size == (32, 32) for s in sprites)
+    rgba = [np.asarray(s) for s in sprites]
+    bottoms = [np.nonzero((r[..., 3] > 0).any(axis=1))[0][-1] for r in rgba]
+    assert bottoms[0] == bottoms[1]
+    first = rgba[0]
+    solid = first[..., 3] > 0
+    left_col = np.nonzero(solid.any(axis=0))[0][0]
+    ys = np.nonzero(solid[:, left_col])[0]
+    assert (first[ys, left_col, :3].sum(axis=1) < 150).all()   # dark outline on the left edge
+    lum = first[..., :3].astype(int).sum(axis=2)
+    right_col = np.nonzero(solid.any(axis=0))[0][-1]
+    inside = ((lum < 100) & solid)[ys[0] + 1:ys[-1], left_col + 1:right_col]
+    assert inside.any()                                        # the eye survived the shrink
+
+
+def test_zimage_turnaround_is_text_to_image():
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    wf = zimage_turnaround_workflow("knight", "pose.png", ["front view"], seed=3)
+    assert wf["sample"]["inputs"]["denoise"] == 1.0
+    assert wf["enc"]["class_type"] == "EmptySD3LatentImage"
+    assert "knight" in wf["pos"]["inputs"]["text"]
 
 
 def test_snap_to_grid_recovers_fake_pixels():

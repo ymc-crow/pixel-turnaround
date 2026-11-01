@@ -155,6 +155,28 @@ def zimage_redraw_workflow(
 
 WORKFLOWS = {"sdxl": redraw_workflow, "zimage": zimage_redraw_workflow}
 
+ZIMAGE_PROMPT = (
+    "character turnaround sprite sheet, the same character shown {count} times in a row: "
+    "{views}. {character}. Super-deformed chibi, about 2.5 heads tall, very big head, short "
+    "stubby body and legs, full body, standing. Bold dark "
+    "outlines, vibrant saturated colors, strong contrast shading. Identical outfit and "
+    "colors in every view, plain white background, game sprite."
+)
+
+
+def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
+                               width: int = 1536, height: int = 640, seed: int = 0,
+                               steps: int = 8, control_strength: float = 0.8) -> dict:
+    """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
+    prompt = ZIMAGE_PROMPT.format(count=len(views), views=", ".join(views), character=character)
+    wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
+                                steps=steps, control_strength=control_strength)
+    del wf["init"]
+    wf["enc"] = {"class_type": "EmptySD3LatentImage",
+                 "inputs": {"width": width, "height": height, "batch_size": 1}}
+    wf["save"]["inputs"]["filename_prefix"] = "turnaround_zimage"
+    return wf
+
 
 def turnaround_workflow(
     character: str,

@@ -147,6 +147,162 @@ def to_sprites(cells: list[Image.Image], size: int = 0, colors: int = 24,
     return sprites
 
 
+def pick_colors(pixels: np.ndarray, colors: int, method: str = "distinct",
+                seed: int = 0) -> np.ndarray:
+    """`colors` RGB colors for an (N, 3) pixel list.
+
+    "median": PIL median cut, which favors big areas.
+    "distinct": k-means over the distinct colors instead of over pixels, so a
+    small face or gem gets its own color as much as a large cape does.
+    """
+    if method == "median":
+        pal = Image.fromarray(pixels[None].astype(np.uint8)).quantize(
+            colors=colors, method=Image.Quantize.MEDIANCUT)
+        out = np.array(pal.getpalette()[:colors * 3], np.uint8).reshape(-1, 3)
+        return out
+    p, count = np.unique(pixels.astype(np.int32) // 8, axis=0, return_counts=True)
+    p = p.astype(np.float32) * 8 + 4
+    if len(p) <= colors:
+        return p.astype(np.uint8)
+    # sqrt: big areas still count more, but no longer drown small ones; a color
+    # seen only once or twice is mostly blending between two others.
+    w = np.sqrt(count) * (count > 2)
+    rng = np.random.default_rng(seed)
+    centers = [p[rng.choice(len(p), p=w / w.sum())]]
+    near = ((p - centers[0]) ** 2).sum(1)
+    for _ in range(colors - 1):      # k-means++ start: spread the colors out
+        centers.append(p[rng.choice(len(p), p=near * w / (near * w).sum())])
+        near = np.minimum(near, ((p - centers[-1]) ** 2).sum(1))
+    c = np.array(centers)
+    for _ in range(12):
+        label = np.argmin(((p[:, None] - c[None]) ** 2).sum(2), 1)
+        for j in range(colors):
+            m = label == j
+            if w[m].sum() > 0:
+                c[j] = (p[m] * w[m, None]).sum(0) / w[m].sum()
+    return c.round().astype(np.uint8)
+
+
+def nearest(rgb: np.ndarray, colors: np.ndarray) -> np.ndarray:
+    """Index of the closest color for every pixel of an (H, W, 3) image."""
+    flat = rgb.reshape(-1, 3).astype(np.int32)
+    keys, inverse = np.unique(flat, axis=0, return_inverse=True)
+    d = ((keys[:, None] - colors[None].astype(np.int32)) ** 2).sum(2)
+    return d.argmin(1)[inverse.ravel()].reshape(rgb.shape[:2])
+
+
+def main_body(fg: np.ndarray, keep: float = 0.02) -> np.ndarray:
+    """Drop specks floating away from the character (sparkles, dust): parts
+    smaller than `keep` of the biggest one go."""
+    label = np.zeros(fg.shape, np.int32)
+    sizes = [0]
+    h, w = fg.shape
+    for y0, x0 in zip(*np.nonzero(fg)):
+        if label[y0, x0]:
+            continue
+        n = len(sizes)
+        label[y0, x0] = n
+        stack, size = [(y0, x0)], 0
+        while stack:
+            y, x = stack.pop()
+            size += 1
+            for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+                if 0 <= yy < h and 0 <= xx < w and fg[yy, xx] and not label[yy, xx]:
+                    label[yy, xx] = n
+                    stack.append((yy, xx))
+        sizes.append(size)
+    sizes = np.array(sizes)
+    return (sizes >= keep * sizes.max())[label] & fg
+
+
+def _vote_shrink(q: np.ndarray, fg: np.ndarray, size: tuple[int, int], weight: np.ndarray):
+    """Shrink a palette-index image: each output pixel takes the most common
+    color of its block, with dark colors counting extra so thin lines (eyes,
+    seams) survive. A pixel is opaque when at least half its block is."""
+    h, w = q.shape
+    ow, oh = size
+    ys = np.linspace(0, h, oh + 1).round().astype(int)
+    xs = np.linspace(0, w, ow + 1).round().astype(int)
+    idx = np.zeros((oh, ow), int)
+    alpha = np.zeros((oh, ow), bool)
+    for j in range(oh):
+        for i in range(ow):
+            m = fg[ys[j]:max(ys[j + 1], ys[j] + 1), xs[i]:max(xs[i + 1], xs[i] + 1)]
+            if m.mean() < 0.5:
+                continue
+            block = q[ys[j]:max(ys[j + 1], ys[j] + 1), xs[i]:max(xs[i + 1], xs[i] + 1)][m]
+            alpha[j, i] = True
+            idx[j, i] = (np.bincount(block, minlength=len(weight)) * weight).argmax()
+    return idx, alpha
+
+
+def _drop_strays(idx: np.ndarray, alpha: np.ndarray, lum: np.ndarray) -> np.ndarray:
+    """A lone pixel lighter than the color all four neighbors share is noise;
+    a lone darker one (an eye, a rivet) is kept."""
+    out = idx.copy()
+    h, w = idx.shape
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            if not alpha[y, x]:
+                continue
+            nb = [idx[y - 1, x], idx[y + 1, x], idx[y, x - 1], idx[y, x + 1]]
+            ok = [alpha[y - 1, x], alpha[y + 1, x], alpha[y, x - 1], alpha[y, x + 1]]
+            if not all(ok) or idx[y, x] in nb:
+                continue
+            common = max(set(nb), key=nb.count)
+            if nb.count(common) >= 3 and lum[idx[y, x]] > lum[common]:
+                out[y, x] = common
+    return out
+
+
+def outline(rgba: np.ndarray, color) -> np.ndarray:
+    """1px outline around the silhouette, the way hand-made sprites read at
+    small sizes."""
+    out = rgba.copy()
+    solid = rgba[..., 3] > 0
+    p = np.pad(solid, 1)
+    ring = (p[:-2, 1:-1] | p[2:, 1:-1] | p[1:-1, :-2] | p[1:-1, 2:]) & ~solid
+    out[ring, :3] = color
+    out[ring, 3] = 255
+    return out
+
+
+def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32,
+                      dark_weight: float = 2.0, method: str = "distinct") -> list[Image.Image]:
+    """Like to_sprites, for models whose fake pixels do not sit on a grid.
+
+    Colors are picked once at full size from every view, then each sprite
+    pixel votes over its block of the big image, and a dark outline goes
+    around the result. info["place"] works as in to_sprites.
+    """
+    cut = []
+    for cell in cells:
+        fg = main_body(~background_mask(cell))
+        x0, y0, x1, y1 = _bbox(fg)
+        cut.append((np.asarray(cell.convert("RGB"))[y0:y1, x0:x1], fg[y0:y1, x0:x1], (x0, y0)))
+    rgb_of = pick_colors(np.concatenate([rgb[m] for rgb, m, _ in cut]), colors, method)
+    lum = rgb_of @ np.array([0.3, 0.59, 0.11])
+    weight = 1 + dark_weight * (1 - lum / 255) ** 2
+    ink = rgb_of[lum.argmin()]
+
+    margin = 1                           # room for the outline
+    scale = (size - 2 * margin) / max(max(rgb.shape[:2]) for rgb, _, _ in cut)
+    sprites = []
+    for rgb, fg, (x0, y0) in cut:
+        q = nearest(rgb, rgb_of)
+        h, w = max(1, round(rgb.shape[0] * scale)), max(1, round(rgb.shape[1] * scale))
+        idx, alpha = _vote_shrink(q, fg, (w, h), weight)
+        idx = _drop_strays(idx, alpha, lum)
+        rgba = np.zeros((size, size, 4), np.uint8)
+        left, top = (size - w) // 2, size - margin - h
+        rgba[top:top + h, left:left + w, :3] = rgb_of[idx]
+        rgba[top:top + h, left:left + w, 3] = alpha * 255
+        sprite = Image.fromarray(outline(rgba, ink))
+        sprite.info["place"] = (scale, x0, y0, left, top)
+        sprites.append(sprite)
+    return sprites
+
+
 def sheet(sprites: list[Image.Image]) -> Image.Image:
     size = sprites[0].width
     out = Image.new("RGBA", (size * len(sprites), sprites[0].height))

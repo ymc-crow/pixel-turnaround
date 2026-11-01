@@ -8,12 +8,16 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from .comfy import ComfyClient, turnaround_workflow
-from .pixelate import preview, sheet, snap_to_grid, split_cells, to_sprites
+from .comfy import ComfyClient, turnaround_workflow, zimage_turnaround_workflow
+from .pixelate import downscale_sprites, preview, sheet, snap_to_grid, split_cells, to_sprites
 from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet
 
-# One SDXL-friendly canvas per mode, roughly one megapixel.
-CANVAS = {"4": (1536, 640), "8": (1600, 640)}
+# Canvas per model and mode. SDXL wants about one megapixel. Z-Image gets a
+# quarter of that: its fake pixels keep their size, so a smaller canvas means
+# fewer of them per character, close to what fits in a 48px sprite (and it
+# runs about 3x faster).
+CANVAS = {"sdxl": {"4": (1536, 640), "8": (1600, 640)},
+          "zimage": {"4": (768, 320), "8": (800, 320)}}
 
 
 def _skeleton(view: str, index: int, count: int, raw: Image.Image,
@@ -35,11 +39,17 @@ def _skeleton(view: str, index: int, count: int, raw: Image.Image,
 
 
 def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
-          character: str | None = None) -> None:
+          character: str | None = None, model: str = "zimage") -> None:
     spec = MODES[mode]
-    snapped = snap_to_grid(raw)
     count = len(spec["draw"])
-    sprites = to_sprites(split_cells(snapped, count), size=size, colors=colors)
+    if model == "sdxl":
+        # The SDXL pixel LoRA draws even blocks, so they can be read off a grid.
+        snapped = snap_to_grid(raw)
+        sprites = to_sprites(split_cells(snapped, count), size=size, colors=colors)
+    else:
+        snapped = raw.copy()
+        snapped.info["grid"] = (1, 0, 1, 0)
+        sprites = downscale_sprites(split_cells(raw, count), size=size or 48, colors=colors)
     drawn = dict(zip(spec["draw"], sprites))
     skeletons = {v: _skeleton(v, i, count, raw, snapped, s)
                  for i, (v, s) in enumerate(zip(spec["draw"], sprites))}
@@ -69,10 +79,12 @@ def main(argv=None) -> None:
     ap.add_argument("-o", "--out", default="out", help="output folder")
     ap.add_argument("-d", "--directions", choices=sorted(MODES), default="4")
     ap.add_argument("--size", type=int, default=0,
-                    help="frame size in pixels, 0 = keep the model's pixel size")
+                    help="frame size in pixels; 0 = 48 for zimage, the model's pixel size for sdxl")
     ap.add_argument("--colors", type=int, default=24, help="shared palette size")
     ap.add_argument("--seed", type=int, default=None)
-    ap.add_argument("--steps", type=int, default=30)
+    ap.add_argument("--model", choices=["zimage", "sdxl"], default="zimage",
+                    help="zimage (Z-Image-Turbo, default, ~1.5 min) or sdxl (~3 min)")
+    ap.add_argument("--steps", type=int, default=0, help="0 = the model's default")
     ap.add_argument("--server", default="http://127.0.0.1:8188")
     ap.add_argument("--checkpoint", default="sd_xl_base_1.0.safetensors")
     ap.add_argument("--lora", default="pixel-art-xl.safetensors")
@@ -84,30 +96,34 @@ def main(argv=None) -> None:
 
     if args.from_raw:
         build(Image.open(args.from_raw), args.directions, args.size, args.colors, out,
-              args.character)
+              args.character, args.model)
         print(f"done: {out / 'sheet.png'}")
         return
     if not args.character:
         ap.error("describe a character, or pass --from-raw")
 
     spec = MODES[args.directions]
-    width, height = CANVAS[args.directions]
+    width, height = CANVAS[args.model][args.directions]
     seed = args.seed if args.seed is not None else random.randint(0, 2**32 - 1)
     client = ComfyClient(args.server)
     pose = pose_sheet(width, height, spec["draw"])
     name = client.upload_image(pose, f"turnaround_pose_{args.directions}.png")
-    workflow = turnaround_workflow(
-        args.character, name, [VIEW_WORDS[v] for v in spec["draw"]],
-        width=width, height=height, seed=seed, steps=args.steps,
-        checkpoint=args.checkpoint, lora=args.lora, controlnet=args.controlnet,
-    )
+    views = [VIEW_WORDS[v] for v in spec["draw"]]
+    if args.model == "zimage":
+        workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
+                                              height=height, seed=seed, steps=args.steps or 8)
+    else:
+        workflow = turnaround_workflow(
+            args.character, name, views, width=width, height=height, seed=seed,
+            steps=args.steps or 30, checkpoint=args.checkpoint, lora=args.lora,
+            controlnet=args.controlnet)
     print(f"generating {len(spec['draw'])} views (seed {seed}), this takes a few minutes...")
     raw = client.run(workflow)[0]
 
     out.mkdir(parents=True, exist_ok=True)
     raw.save(out / "raw.png")
     pose.save(out / "pose.png")
-    build(raw, args.directions, args.size, args.colors, out, args.character)
+    build(raw, args.directions, args.size, args.colors, out, args.character, args.model)
     print(f"done: {out / 'sheet.png'}  (seed {seed})")
 
 
