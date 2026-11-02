@@ -279,6 +279,32 @@ def _drop_strays(idx: np.ndarray, alpha: np.ndarray, lum: np.ndarray) -> np.ndar
     return out
 
 
+def _flatten(idx: np.ndarray, alpha: np.ndarray, colors: np.ndarray, near: float = 80,
+             need: int = 4, rounds: int = 2) -> np.ndarray:
+    """Shiny metal comes out speckled with many shades. Hand-made sprites paint
+    each material in a few flat shades, so a pixel takes the color most of its
+    8 neighbors share when that color is a close shade of its own (same
+    material). Real edges between materials (skin and eye, cape and armor)
+    are far apart in color and stay."""
+    rgb = colors.astype(np.float32)
+    close = np.linalg.norm(rgb[:, None] - rgb[None], axis=2) < near
+    out = idx.copy()
+    h, w = idx.shape
+    for _ in range(rounds):
+        src = out.copy()
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                if not alpha[y, x]:
+                    continue
+                solid = np.delete(alpha[y - 1:y + 2, x - 1:x + 2].ravel(), 4)
+                nb = np.delete(src[y - 1:y + 2, x - 1:x + 2].ravel(), 4)[solid]
+                count = np.bincount(nb, minlength=len(colors))
+                c = count.argmax()
+                if count[c] >= need and c != src[y, x] and close[src[y, x], c]:
+                    out[y, x] = c
+    return out
+
+
 def outline(rgba: np.ndarray, color) -> np.ndarray:
     """1px outline around the silhouette, the way hand-made sprites read at
     small sizes."""
@@ -326,13 +352,13 @@ def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: 
                 dark_weight: float = 2.0, smooth: int = 3) -> np.ndarray:
     """Big drawing -> small RGBA in the given colors: a light median blur
     first (the model's shading is speckled; flat areas read better small),
-    then nearest color at full size, a weighted vote per sprite pixel, and
-    lone light specks removed."""
+    then nearest color at full size, a weighted vote per sprite pixel, lone
+    light specks removed, and speckled shading of one material flattened."""
     rgb = np.asarray(Image.fromarray(rgb).filter(ImageFilter.MedianFilter(smooth))) if smooth else rgb
     lum = colors @ LUMA
     weight = 1 + dark_weight * (1 - lum / 255) ** 2
     idx, alpha = _vote_shrink(nearest(rgb, colors), fg, size, weight)
-    idx = _drop_strays(idx, alpha, lum)
+    idx = _flatten(_drop_strays(idx, alpha, lum), alpha, colors)
     out = np.zeros((size[1], size[0], 4), np.uint8)
     out[..., :3] = colors[idx]
     out[..., 3] = alpha * 255

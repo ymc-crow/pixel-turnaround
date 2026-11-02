@@ -342,3 +342,14 @@ def test_comfy_run_keeps_waiting_when_a_poll_times_out(monkeypatch):
     monkeypatch.setattr(client, "_get", fake_get)
     monkeypatch.setattr("spritehatch.comfy.time.sleep", lambda s: None)
     assert client.run({}) == []
+
+
+def test_flatten_merges_close_shades_but_keeps_far_colors():
+    from spritehatch.pixelate import _flatten
+
+    colors = np.array([[150, 150, 150], [170, 170, 170], [10, 10, 10]], np.uint8)
+    idx = np.zeros((5, 5), int)
+    idx[2, 2] = 1                      # a lighter speck in grey metal: flattened
+    idx[1, 1] = 2                      # a dark eye: kept
+    out = _flatten(idx, np.ones((5, 5), bool), colors)
+    assert out[2, 2] == 0 and out[1, 1] == 2
