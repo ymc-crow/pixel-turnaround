@@ -69,6 +69,9 @@ def main(argv=None) -> None:
     ap.add_argument("--model", choices=sorted(WORKFLOWS), default="zimage",
                     help="model --redraw paints with: zimage (Z-Image-Turbo, best) or sdxl")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--steps", type=int, default=None,
+                    help="sampling steps per --redraw grid (zimage: 6; 4 is twice as fast "
+                         "for a quick look, small marks melt)")
     ap.add_argument("--server", default="http://127.0.0.1:8188")
     args = ap.parse_args(argv)
 
@@ -103,7 +106,8 @@ def main(argv=None) -> None:
                 frames, pts = every_nth(frames, GROUP, last), every_nth(pts, GROUP, last)
                 frames = redraw(frames, pts, still=stills[d], character=meta.get("character", ""),
                                 view=d, motion=name, client=client,
-                                denoise=args.denoise, seed=args.seed, model=args.model)
+                                denoise=args.denoise, seed=args.seed, model=args.model,
+                                steps=args.steps)
             drawn[d] = frames
         drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
         rows = [drawn[d] for d in ORDER]

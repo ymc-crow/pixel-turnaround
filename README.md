@@ -95,7 +95,8 @@ Bodies lying flat keep their rig frame: the model paints them as a heap of
 armor, while the rig frame is the whole standing sprite turned over.
 
 Motions are cut to 4 frames (played slower, so they keep their length). On an
-M1 Pro: about 2-3 minutes per direction for every motion. `--model sdxl` uses
+M1 Pro: about 2 minutes per direction for every motion (`--steps 4` halves
+that for a quick look, small marks melt). `--model sdxl` uses
 SDXL instead.
 
 ## Requirements

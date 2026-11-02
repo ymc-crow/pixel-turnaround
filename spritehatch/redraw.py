@@ -31,6 +31,10 @@ GROUP = 4
 # sprite (black legs on a silver knight); 0.5 keeps its colors and still lets
 # the legs move.
 SIDE_DENOISE = 0.5
+# Sampling steps per grid. Z-Image-Turbo at 6 looks the same as at 8 and takes
+# about 15% less time (2 min instead of 2.5 on an M1 Pro); 4 halves it but
+# small marks (an emblem) start to melt.
+STEPS = {"zimage": 6}
 
 
 def cell_size(frame: int, body: int | None = None) -> int:
@@ -112,7 +116,8 @@ def sprite_colors(still: Image.Image) -> np.ndarray:
 
 def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
            character: str, view: str, motion: str, client: ComfyClient,
-           denoise: float = 0.6, seed: int = 0, model: str = "zimage") -> list[Image.Image]:
+           denoise: float = 0.6, seed: int = 0, model: str = "zimage",
+           steps: int | None = None) -> list[Image.Image]:
     """Paint over all frames of one motion and view, four at a time.
 
     Some frames keep their rig drawing: ones without a skeleton (nothing to
@@ -131,7 +136,8 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
         tag = f"redraw_{motion}_{view}_{g}"
         wf = WORKFLOWS[model](prompt, client.upload_image(draft, f"{tag}_draft.png"),
                              client.upload_image(pose, f"{tag}_pose.png"),
-                             denoise=denoise, seed=seed)
+                             denoise=denoise, seed=seed,
+                             steps=steps or STEPS.get(model, 30))
         painted = client.run(wf)[0]
         for rig, new, p in zip(part, split_grid(painted, len(part), part[0].width, colors,
                                                    still.width), pts):
