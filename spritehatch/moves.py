@@ -83,6 +83,8 @@ def walk(view: str) -> list[dict]:
                 # small swings: a cape hanging behind the arms moves with them
                 "arm_r": 2 + 4 * lift_l, "arm_l": 2 + 4 * lift_r,
                 "hand_r": 6, "hand_l": 6,
+                # the body dips a pixel when a foot lands and rises as the legs pass
+                "shift": {"torso": (0, 1 if abs(s) > 0.9 else 0)},
             })
     return poses
 
