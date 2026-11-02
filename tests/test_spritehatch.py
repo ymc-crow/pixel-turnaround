@@ -448,3 +448,13 @@ def test_sword_is_drawn_at_the_hand_in_any_direction():
         a = np.asarray(layer)
         assert a[30:35, 30:35, 3].any()                        # held at the hand
         assert (a[..., :3] == BLADE[:3]).all(2).sum() >= 4     # a visible blade
+
+
+def test_black_clothes_are_lifted_off_the_outline():
+    from spritehatch.pixelate import LUMA, lift_darks
+
+    colors = np.array([[6, 6, 8], [20, 18, 24], [30, 28, 34], [200, 40, 40]], np.uint8)
+    out = lift_darks(colors)
+    lum = out.astype(float) @ LUMA
+    assert (out[0] == colors[0]).all() and (out[3] == colors[3]).all()  # outline, red stay
+    assert lum[1] >= 40 and lum[2] > lum[1]                            # cloth lifted, in order

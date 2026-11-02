@@ -332,13 +332,14 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
         cut.append((np.asarray(cell.convert("RGB"))[y0:y1, x0:x1], fg[y0:y1, x0:x1], (x0, y0)))
     rgb_of = pick_colors(np.concatenate([rgb[m] for rgb, m, _ in cut]), colors, method)
     ink = rgb_of[(rgb_of @ LUMA).argmin()]
+    shown = lift_darks(rgb_of)
 
     margin = 1                           # room for the outline
     scale = (size - 2 * margin) / max(max(rgb.shape[:2]) for rgb, _, _ in cut)
     sprites = []
     for rgb, fg, (x0, y0) in cut:
         h, w = max(1, round(rgb.shape[0] * scale)), max(1, round(rgb.shape[1] * scale))
-        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight)
+        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight, shown=shown)
         rgba = np.zeros((size, size, 4), np.uint8)
         left, top = (size - w) // 2, size - margin - h
         rgba[top:top + h, left:left + w] = small
@@ -348,8 +349,25 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
     return sprites
 
 
+def lift_darks(colors: np.ndarray, floor: float = 40, top: float = 72) -> np.ndarray:
+    """Black clothes come out as near-black, the same as the outline, and the
+    body turns into one dark blob. Pixel artists paint black as a dark gray
+    with a tint, so the outline still reads. Every color darker than `top`
+    except the darkest one (the outline and eyes) is spread over floor..top,
+    keeping its order and hue."""
+    lum = colors.astype(float) @ LUMA
+    ink = lum.min()
+    out = colors.astype(float)
+    for i, v in enumerate(lum):
+        if ink < v < top:
+            new = floor + (v - ink) / (top - ink) * (top - floor)
+            out[i] = out[i] * (new / max(v, 1.0)) if v > 1 else out[i] + new
+    return np.clip(out.round(), 0, 255).astype(np.uint8)
+
+
 def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: np.ndarray,
-                dark_weight: float = 2.0, smooth: int = 3) -> np.ndarray:
+                dark_weight: float = 2.0, smooth: int = 3,
+                shown: np.ndarray | None = None) -> np.ndarray:
     """Big drawing -> small RGBA in the given colors: a light median blur
     first (the model's shading is speckled; flat areas read better small),
     then nearest color at full size, a weighted vote per sprite pixel, lone
@@ -360,7 +378,7 @@ def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: 
     idx, alpha = _vote_shrink(nearest(rgb, colors), fg, size, weight)
     idx = _flatten(_drop_strays(idx, alpha, lum), alpha, colors)
     out = np.zeros((size[1], size[0], 4), np.uint8)
-    out[..., :3] = colors[idx]
+    out[..., :3] = (colors if shown is None else shown)[idx]
     out[..., 3] = alpha * 255
     return out
 
