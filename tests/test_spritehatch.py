@@ -353,3 +353,11 @@ def test_flatten_merges_close_shades_but_keeps_far_colors():
     idx[1, 1] = 2                      # a dark eye: kept
     out = _flatten(idx, np.ones((5, 5), bool), colors)
     assert out[2, 2] == 0 and out[1, 1] == 2
+
+
+def test_squash_shortens_a_leg_toward_the_hip():
+    from spritehatch.rig import _squash
+
+    m = _squash(0.5, (0, 10))
+    assert np.allclose(m @ [3, 10, 1], [3, 10, 1])   # the joint stays
+    assert np.allclose(m @ [3, 20, 1], [3, 15, 1])   # the foot comes up halfway

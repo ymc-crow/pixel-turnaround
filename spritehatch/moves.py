@@ -1,7 +1,8 @@
 """Motions as joint poses, played on the bone rig.
 
 A pose is a dict of bone -> degrees (see Rig.angles for what the numbers
-mean), plus optional "shift" (bone -> pixels), "lift" (bone -> share of the
+mean), plus optional "shift" (bone -> pixels), "squash" (bone -> height
+factor toward its joint), "lift" (bone -> share of the
 body height to raise it), "root" and effect keys that
 render() handles after the body is drawn:
 
@@ -74,15 +75,13 @@ def walk(view: str) -> list[dict]:
         else:
             lift_r, lift_l = max(0.0, s), max(0.0, -s)
             poses.append({
-                # the stepping leg lifts about a sixth of the body, knee first
-                "lift": {"leg_r": 0.10 * lift_r, "leg_l": 0.10 * lift_l,
-                         "foot_r": 0.06 * lift_r, "foot_l": 0.06 * lift_l},
+                # Seen from the front, a leg stepping toward the camera looks
+                # shorter: its foot rises while its top stays under the skirt.
+                # (Lifting the whole leg hid it behind the hips, and turning
+                # hips and chest a few degrees tore holes in a 48 px body.)
+                "squash": {"leg_r": 1 - 0.25 * lift_r, "leg_l": 1 - 0.25 * lift_l},
                 "arm_r": 4 + 8 * lift_l, "arm_l": 4 + 8 * lift_r,
                 "hand_r": 6, "hand_l": 6,
-                # the hip drops on the lifted side and the body sways over the
-                # standing foot; chest and head lean back the other way
-                "hips": 5 * s, "torso": -4 * s, "head": -1.5 * s,
-                "root": (round(-s), 0), "ground": False,
             })
     return poses
 

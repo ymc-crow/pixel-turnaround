@@ -51,6 +51,11 @@ def _rot(deg: float, pivot) -> np.ndarray:
                      [0, 0, 1]])
 
 
+def _squash(sy: float, pivot) -> np.ndarray:
+    """Scale height around a point, so a part gets shorter toward it."""
+    return np.array([[1, 0, 0], [0, sy, pivot[1] * (1 - sy)], [0, 0, 1]], dtype=float)
+
+
 def _move(dx: float, dy: float) -> np.ndarray:
     return np.array([[1, 0, dx], [0, 1, dy], [0, 0, 1]], dtype=float)
 
@@ -172,10 +177,15 @@ class Rig:
         for name, share in pose.get("lift", {}).items():
             dx, dy = shift.get(name, (0, 0))
             shift[name] = (dx, dy - round(share * self.height))
+        # "squash" shortens a bone toward its joint: a leg stepping toward or
+        # away from the camera looks shorter, its foot higher, its top still
+        # at the hip.
+        squash = pose.get("squash", {})
         root = _move(*pose.get("root", (0, 0)))
         world = {}
         for name, parent, s, _, _ in BONES:
-            local = _rot(rot.get(name, 0), self.pts[s]) @ _move(*shift.get(name, (0, 0)))
+            local = (_rot(rot.get(name, 0), self.pts[s]) @ _move(*shift.get(name, (0, 0)))
+                     @ _squash(squash.get(name, 1.0), self.pts[s]))
             world[name] = (world[parent] if parent else root) @ local
         if pose.get("ground", True):
             # Keep the lowest foot on the floor, like a real step.
