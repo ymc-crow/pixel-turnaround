@@ -27,8 +27,8 @@
     "cast": {
       "file": "cast.png",
       "frame": 72,
-      "frames": 8,
-      "ms": 100
+      "frames": 4,
+      "ms": 200
     },
     "death": {
       "file": "death.png",
