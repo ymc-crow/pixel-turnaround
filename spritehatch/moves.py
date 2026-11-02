@@ -169,8 +169,9 @@ def death(view: str) -> list[dict]:
             {**recoil, "flash": True},
             {**recoil, "torso": -14, "head": -16, "root": (-2, 0)},
             sag,
-            {**sag, "fall": -30},
-            {**sag, "arm_r": 90, "arm_l": 70, "fall": -60},
+            # tipping over straight, see the front/back fall below
+            {"arm_r": 10, "arm_l": 10, "head": -5, "fall": -30},
+            {"arm_r": 10, "arm_l": 10, "head": -5, "fall": -60},
             {**flat, "fall": -90},
             {**flat, "fall": -90, "bounce": True},
             {**flat, "fall": -90, "dark": True},
