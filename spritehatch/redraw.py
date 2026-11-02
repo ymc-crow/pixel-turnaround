@@ -112,8 +112,9 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
     """Paint over all frames of one motion and view, four at a time.
 
     Some frames keep their rig drawing: ones without a skeleton (nothing to
-    guide the model, it paints a lump) and ones the model mostly lost, like
-    the white hit flash, which melts into the white background."""
+    guide the model, it paints a lump), ones the model mostly lost, like
+    the white hit flash, which melts into the white background, and bodies
+    lying down."""
     colors = sprite_colors(still)
     prompt = PROMPT.format(n=GROUP, action=ACTION.get(motion, motion),
                            view=VIEW_WORDS[view], character=character)
@@ -128,9 +129,18 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
         painted = client.run(wf)[0]
         for rig, new, p in zip(part, split_grid(painted, len(part), part[0].width, colors,
                                                    still.width), pts):
-            out.append(new if p is not None and _area(new) >= 0.5 * _area(rig) else rig)
+            keep = p is None or _area(new) < 0.5 * _area(rig) or _lying(rig)
+            out.append(rig if keep else new)
     return out
 
 
 def _area(frame: Image.Image) -> int:
     return int((np.asarray(frame)[..., 3] > 0).sum())
+
+
+def _lying(frame: Image.Image) -> bool:
+    """A body lying down is much wider than tall. The model cannot draw one
+    (it paints a heap of armor), while the rig frame is the whole standing
+    sprite turned over, every detail intact."""
+    ys, xs = np.nonzero(np.asarray(frame)[..., 3] > 0)
+    return len(xs) > 0 and (xs.max() - xs.min()) > 1.4 * (ys.max() - ys.min())

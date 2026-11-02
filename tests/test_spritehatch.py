@@ -389,3 +389,12 @@ def test_a_body_falling_flat_is_not_cut_off():
     lying = render(Image.fromarray(a), sk, "right", "death")[-2]
     red = (np.asarray(lying)[..., :3] == (255, 0, 0)).all(2)
     assert red.sum() > 0.8 * 200                       # the whole helmet is still there
+
+
+def test_lying_frames_are_told_apart():
+    from spritehatch.redraw import _lying
+
+    a = np.zeros((72, 72, 4), np.uint8)
+    a[50:62, 10:60, 3] = 255
+    assert _lying(Image.fromarray(a))
+    assert not _lying(Image.fromarray(a.transpose(1, 0, 2)))
