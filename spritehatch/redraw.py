@@ -130,8 +130,28 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
         for rig, new, p in zip(part, split_grid(painted, len(part), part[0].width, colors,
                                                    still.width), pts):
             keep = p is None or _area(new) < 0.5 * _area(rig) or _lying(rig)
+            if not keep and motion in HEAD_KEPT:
+                new = _keep_head(rig, new, p)
             out.append(rig if keep else new)
     return out
+
+
+# Motions whose rig head is the standing sprite's head with nothing drawn over
+# it (no sword swung overhead, no magic). Their faces stay the hand-made ones.
+HEAD_KEPT = {"idle", "walk"}
+
+
+def _keep_head(rig: Image.Image, new: Image.Image, pts: list) -> Image.Image:
+    """The model often paints the face away (a closed visor, no eyes). Above
+    the neck, use the rig frame, which is the standing sprite's head, so the
+    face stays and is the same in every frame."""
+    if pts[1] is None:
+        return new
+    r, n = np.asarray(rig), np.asarray(new).copy()
+    above = np.zeros(r.shape[:2], bool)
+    above[:max(0, round(pts[1][1]))] = True
+    n[above] = r[above]
+    return Image.fromarray(n)
 
 
 def _area(frame: Image.Image) -> int:

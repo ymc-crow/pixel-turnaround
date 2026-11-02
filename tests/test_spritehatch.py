@@ -398,3 +398,16 @@ def test_lying_frames_are_told_apart():
     a[50:62, 10:60, 3] = 255
     assert _lying(Image.fromarray(a))
     assert not _lying(Image.fromarray(a.transpose(1, 0, 2)))
+
+
+def test_redrawn_walk_keeps_the_rig_head():
+    from spritehatch.redraw import _keep_head
+
+    rig = np.zeros((10, 10, 4), np.uint8)
+    rig[:, :] = (255, 0, 0, 255)
+    new = np.zeros((10, 10, 4), np.uint8)
+    new[:, :] = (0, 0, 255, 255)
+    pts = [None] * 18
+    pts[1] = (5, 4)                                    # neck at y = 4
+    out = np.asarray(_keep_head(Image.fromarray(rig), Image.fromarray(new), pts))
+    assert (out[:4, :, 0] == 255).all() and (out[4:, :, 2] == 255).all()
