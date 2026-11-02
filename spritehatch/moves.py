@@ -183,8 +183,10 @@ def death(view: str) -> list[dict]:
         {**recoil, "arm_r": 40, "arm_l": 40, "torso": -8, "head": -10},
         {**slump, "shift": {"torso": (0, 2), "leg_r": (0, -1), "leg_l": (0, -1)}},
         slump,
-        {**slump, "fall": 30},
-        {**slump, "fall": 65},
+        # Tip over straight: a slumped 48px body turned 30-65 degrees breaks
+        # into specks, a straight one keeps its face and outline.
+        {"arm_r": 10, "arm_l": 10, "fall": 30},
+        {"arm_r": 10, "arm_l": 10, "fall": 65},
         {"arm_r": 10, "arm_l": 10, "fall": 90},
         {"arm_r": 10, "arm_l": 10, "fall": 90, "dark": True},
     ]
