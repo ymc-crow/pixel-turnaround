@@ -25,7 +25,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 from .comfy import WORKFLOWS, ComfyClient
-from .moves import MOTIONS, render
+from .moves import MOTIONS, render, with_effects
 from .pixelate import preview, sheet
 from .redraw import GROUP, every_nth, redraw
 
@@ -98,17 +98,23 @@ def main(argv=None) -> None:
         drawn = {}
         for d in ("down", "right", "up"):
             pts: list = []
-            frames = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts)
-            if client:
-                # One 2x2 grid holds the whole motion, so all frames get painted
-                # together and stay the same character (two grids drift apart).
-                last = name in ONE_SHOT
-                frames, pts = every_nth(frames, GROUP, last), every_nth(pts, GROUP, last)
-                frames = redraw(frames, pts, still=stills[d], character=meta.get("character", ""),
-                                view=d, motion=name, client=client,
-                                denoise=args.denoise, seed=args.seed, model=args.model,
-                                steps=args.steps)
-            drawn[d] = frames
+            if not client:
+                drawn[d] = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts)
+                continue
+            # The model paints the body only; sword and magic go back on top
+            # afterwards, crisp, and out of the way of the face it keeps.
+            layers: list = []
+            frames = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts,
+                            effects=layers)
+            # One 2x2 grid holds the whole motion, so all frames get painted
+            # together and stay the same character (two grids drift apart).
+            last = name in ONE_SHOT
+            frames, pts, layers = (every_nth(x, GROUP, last) for x in (frames, pts, layers))
+            frames = redraw(frames, pts, still=stills[d], character=meta.get("character", ""),
+                            view=d, motion=name, client=client,
+                            denoise=args.denoise, seed=args.seed, model=args.model,
+                            steps=args.steps)
+            drawn[d] = [with_effects(f, lay) for f, lay in zip(frames, layers)]
         drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
         rows = [drawn[d] for d in ORDER]
         # Fewer frames play slower, so the motion keeps its length.

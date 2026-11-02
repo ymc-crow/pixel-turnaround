@@ -53,8 +53,11 @@ PROMPT = (
     "{view}, {character}, chibi, big head, full body, identical outfit and colors "
     "in every frame, plain white background, game sprite, clean pixels"
 )
-ACTION = {"idle": "standing and breathing", "walk": "walking", "attack": "swinging a sword",
-          "cast": "casting a spell", "death": "getting hit and falling down"}
+ACTION = {"idle": "standing and breathing", "walk": "walking",
+          # Sword and magic are drawn on top afterwards; asked for them, the model
+          # paints a second sword.
+          "attack": "striking with empty hands",
+          "cast": "raising empty hands", "death": "getting hit and falling down"}
 
 
 def every_nth(items: list, count: int, keep_last: bool = False) -> list:
@@ -142,16 +145,10 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
         for rig, new, p in zip(part, split_grid(painted, len(part), part[0].width, colors,
                                                    still.width), pts):
             keep = p is None or _area(new) < 0.5 * _area(rig) or _lying(rig)
-            if not keep and motion in HEAD_KEPT:
+            if not keep:
                 new = _keep_head(rig, new, p)
             out.append(rig if keep else new)
     return out
-
-
-# Motions whose rig head is the standing sprite's head with nothing drawn over
-# it (no sword swung overhead, no magic). Their faces stay the hand-made ones.
-# (Death too, while the body is still upright.)
-HEAD_KEPT = {"idle", "walk", "death"}
 
 
 def _keep_head(rig: Image.Image, new: Image.Image, pts: list) -> Image.Image:

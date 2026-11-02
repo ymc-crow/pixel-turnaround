@@ -266,13 +266,23 @@ def _turn(p, deg: float, pivot, shift) -> tuple:
             pivot[1] + dx * math.sin(a) + dy * math.cos(a) + shift[1])
 
 
+def with_effects(body: Image.Image, layers: tuple) -> Image.Image:
+    back, front = layers
+    return Image.alpha_composite(Image.alpha_composite(back, body), front)
+
+
 def render(still: Image.Image, skeleton, direction: str, motion: str,
-           keypoints: list | None = None) -> list[Image.Image]:
+           keypoints: list | None = None, effects: list | None = None) -> list[Image.Image]:
     """All frames of one motion for one direction (left is a mirrored right).
 
     Pass a list as `keypoints` to get, per frame, the 18 posed OpenPose points
     in frame pixels, tipped over with the body when it falls. Not available
     for "left".
+
+    Pass a list as `effects` to get the body alone; the list gets, per frame,
+    the (behind, in front) layers with the sword, slash and magic, for
+    with_effects(). --redraw paints the body and adds them back crisp.
+    Only for motions that do not fall over.
     """
     view = "right" if direction == "left" else direction
     make_poses, _, big = MOTIONS[motion]
@@ -288,12 +298,17 @@ def render(still: Image.Image, skeleton, direction: str, motion: str,
             body = fx.tint(body, fx.MAGIC[1], pose["glow"])
         if pose.get("flash"):
             body = fx.tint(body, (255, 255, 255), 1.0)
+        back, front = _magic(rig, world, view, pose, i)
         if pose.get("sword"):
             layer = _sword_layer(rig, world, view, state, pose)
-            body = Image.alpha_composite(layer, body) if view == "up" else \
-                Image.alpha_composite(body, layer)
-        back, front = _magic(rig, world, view, pose, i)
-        body = Image.alpha_composite(Image.alpha_composite(back, body), front)
+            if view == "up":
+                back = Image.alpha_composite(back, layer)
+            else:
+                front = Image.alpha_composite(front, layer)
+        if effects is not None:
+            effects.append((back, front))
+        else:
+            body = Image.alpha_composite(Image.alpha_composite(back, body), front)
         if pose.get("fall"):
             # Profiles fall on their face; front and back views topple sideways.
             # Turn around the body's middle: around the feet, a long body

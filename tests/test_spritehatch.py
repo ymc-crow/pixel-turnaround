@@ -421,3 +421,19 @@ def test_a_tipped_body_keeps_the_painted_head():
     pts = [None] * 18
     pts[1], pts[8], pts[11] = (2, 5), (8, 5), (8, 6)   # lying: hips beside the neck
     assert _keep_head(Image.new("RGBA", (10, 10)), new, pts) is new
+
+
+def test_body_and_effects_put_back_together_match_the_normal_frames():
+    from spritehatch.moves import render, with_effects
+    from spritehatch.pose import keypoints
+
+    a = np.zeros((48, 48, 4), np.uint8)
+    a[2:47, 18:30] = (200, 200, 200, 255)
+    for view in ("down", "right", "up"):
+        sk = [None if p is None else [p[0] * 48, p[1] * 48] for p in keypoints(view)]
+        for motion in ("attack", "cast"):
+            layers: list = []
+            bodies = render(Image.fromarray(a), sk, view, motion, effects=layers)
+            normal = render(Image.fromarray(a), sk, view, motion)
+            for b, lay, n in zip(bodies, layers, normal):
+                assert np.array_equal(np.asarray(with_effects(b, lay)), np.asarray(n))
