@@ -409,5 +409,15 @@ def test_redrawn_walk_keeps_the_rig_head():
     new[:, :] = (0, 0, 255, 255)
     pts = [None] * 18
     pts[1] = (5, 4)                                    # neck at y = 4
+    pts[8], pts[11] = (4, 8), (6, 8)                   # hips straight below
     out = np.asarray(_keep_head(Image.fromarray(rig), Image.fromarray(new), pts))
     assert (out[:4, :, 0] == 255).all() and (out[4:, :, 2] == 255).all()
+
+
+def test_a_tipped_body_keeps_the_painted_head():
+    from spritehatch.redraw import _keep_head
+
+    new = Image.new("RGBA", (10, 10), (0, 0, 255, 255))
+    pts = [None] * 18
+    pts[1], pts[8], pts[11] = (2, 5), (8, 5), (8, 6)   # lying: hips beside the neck
+    assert _keep_head(Image.new("RGBA", (10, 10)), new, pts) is new
