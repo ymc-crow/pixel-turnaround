@@ -27,6 +27,10 @@ from .pose import VIEW_WORDS, draw_cell
 CELL = 384
 GRID_MAX = 768
 GROUP = 4
+# At 0.6 the model paints a profile's armor much darker than the standing
+# sprite (black legs on a silver knight); 0.5 keeps its colors and still lets
+# the legs move.
+SIDE_DENOISE = 0.5
 
 
 def cell_size(frame: int, body: int | None = None) -> int:
@@ -116,6 +120,8 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
     the white hit flash, which melts into the white background, and bodies
     lying down."""
     colors = sprite_colors(still)
+    if view == "right":
+        denoise = min(denoise, SIDE_DENOISE)
     prompt = PROMPT.format(n=GROUP, action=ACTION.get(motion, motion),
                            view=VIEW_WORDS[view], character=character)
     out = []
