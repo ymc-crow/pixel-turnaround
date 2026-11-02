@@ -49,6 +49,14 @@
 4. 앞·뒤 걷기: 다리를 들어 올리던 걸 `squash`(다리를 엉덩이 쪽으로 줄임)로 바꿔 두 다리가 갈려 보임. 망토 자락은 `rig.LIMB_REACH=1.5`(팔·다리 굵기 1.5배 밖은 몸통)로 몸에 붙임. 지팡이 든 마법사로 확인해도 지팡이 안 쪼개짐. 남은 것: 옆모습 다시 그리기에서 가슴 무늬가 해골처럼 변함.
 5. 몬스터·용 등 사람형이 아닌 것: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
 
+## 여러 캐릭터 시험 (기사만 보고 다듬지 말 것)
+개선 후 기사 말고도 아래 캐릭터로 정지 그림 + 동작을 만들어 깨지는 데가 없는지 볼 것
+(설명에 칼 같은 무기는 넣지 말 것, 공격 때 칼이 두 개 됨):
+- `cute little wizard, purple robe, pointy hat, long wooden staff with a glowing blue crystal` --seed 3
+- `cute little archer girl, green hood, brown leather vest, short brown boots` --seed 5
+- `cute little rogue, black hooded cloak, red scarf over the mouth` --seed 11
+- `cute little barbarian, orange braided hair, fur shoulder pads, bare arms` --seed 2
+
 ## 비교하는 법
 같은 배율로 나란히 놓고 본다:
 ```python
