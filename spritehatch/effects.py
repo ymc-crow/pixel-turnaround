@@ -26,18 +26,33 @@ def box(img: Image.Image):
     return xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
 
 
-def sword(draw: ImageDraw.ImageDraw, hand, deg: float, length: float) -> None:
-    ux, uy = unit(deg)
-    hx, hy = hand
-    tip = (hx + ux * length, hy + uy * length)
-    base = (hx + ux * 3, hy + uy * 3)
-    draw.line([base, tip], fill=OUTLINE, width=4)
-    draw.line([base, tip], fill=BLADE_EDGE, width=2)
-    draw.line([(base[0] - uy * 0.5, base[1] + ux * 0.5), tip], fill=BLADE, width=1)
-    px, py = -uy, ux
-    draw.line([(base[0] + px * 3, base[1] + py * 3), (base[0] - px * 3, base[1] - py * 3)],
-              fill=GUARD, width=2)
-    draw.line([(hx - ux * 2, hy - uy * 2), (hx + ux * 2, hy + uy * 2)], fill=GRIP, width=2)
+def _sword_sprite(length: float) -> Image.Image:
+    """A hand-pixeled sword pointing right, the hand at (4, 3): outlined
+    blade with a bright top edge and a pointed tip, gold guard, brown grip."""
+    w = int(length + 0.5) + 6
+    a = np.zeros((7, w, 4), np.uint8)
+    a[1:6, 5:w - 1] = OUTLINE
+    a[2, 6:w - 2] = BLADE
+    a[3:5, 6:w - 2] = BLADE_EDGE
+    a[2:5, w - 2] = OUTLINE
+    a[3, w - 2] = BLADE
+    a[3, w - 1] = OUTLINE
+    a[[1, 5], w - 2] = 0
+    a[0:7, 4] = OUTLINE
+    a[1:6, 4] = GUARD
+    a[2:5, 0:4] = OUTLINE
+    a[3, 1:4] = GRIP
+    return Image.fromarray(a)
+
+
+def sword(layer: Image.Image, hand, deg: float, length: float) -> None:
+    """Draw a sword held at `hand`, pointing `deg` degrees (clockwise on
+    screen), onto `layer`. The sprite is turned RotSprite-style: drawn
+    straight with lines, a diagonal blade at this size breaks into stripes."""
+    hx, hy = round(hand[0]), round(hand[1])
+    canvas = Image.new("RGBA", layer.size)
+    canvas.alpha_composite(_sword_sprite(length), (max(0, hx - 4), max(0, hy - 3)))
+    layer.alpha_composite(rotate(canvas, -deg, (hx + 0.5, hy + 0.5)))
 
 
 def trail(draw: ImageDraw.ImageDraw, center, a0: float, a1: float, r0: float, r1: float) -> None:

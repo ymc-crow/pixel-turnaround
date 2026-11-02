@@ -437,3 +437,14 @@ def test_body_and_effects_put_back_together_match_the_normal_frames():
             normal = render(Image.fromarray(a), sk, view, motion)
             for b, lay, n in zip(bodies, layers, normal):
                 assert np.array_equal(np.asarray(with_effects(b, lay)), np.asarray(n))
+
+
+def test_sword_is_drawn_at_the_hand_in_any_direction():
+    from spritehatch.effects import BLADE, sword
+
+    for deg in (0, 37, 90, 200):
+        layer = Image.new("RGBA", (64, 64))
+        sword(layer, (32, 32), deg, 16)
+        a = np.asarray(layer)
+        assert a[30:35, 30:35, 3].any()                        # held at the hand
+        assert (a[..., :3] == BLADE[:3]).all(2).sum() >= 4     # a visible blade
