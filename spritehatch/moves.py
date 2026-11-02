@@ -293,8 +293,11 @@ def render(still: Image.Image, skeleton, direction: str, motion: str,
         body = Image.alpha_composite(Image.alpha_composite(back, body), front)
         if pose.get("fall"):
             # Profiles fall on their face; front and back views topple sideways.
-            x0, _, x1, y1 = fx.box(body)
-            pivot = ((x0 + x1) / 2, y1)
+            # Turn around the body's middle: around the feet, a long body
+            # swings its head out of the canvas and gets cut off. ground()
+            # puts it back on the floor afterwards anyway.
+            x0, y0, x1, y1 = fx.box(body)
+            pivot = ((x0 + x1) / 2, (y0 + y1) / 2)
             body = fx.rotate(body, -pose["fall"], pivot)
             # Slide toward the middle while falling so the body stays in frame.
             x0, y0, x1, _ = fx.box(body)

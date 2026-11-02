@@ -376,3 +376,16 @@ def test_far_cape_pixels_stay_on_the_body():
     rig = R.Rig(img, sk, "down")
     arms = sum(rig.parts[n][..., 3].astype(bool) for n in ("arm_r", "hand_r", "arm_l", "hand_l"))
     assert not arms[50:60, 2:5].any() and not arms[50:60, 59:62].any()
+
+
+def test_a_body_falling_flat_is_not_cut_off():
+    from spritehatch.moves import render
+    from spritehatch.pose import keypoints
+
+    a = np.zeros((48, 48, 4), np.uint8)
+    a[2:47, 18:30] = (200, 200, 200, 255)
+    a[2:12, 14:34] = (255, 0, 0, 255)                  # a big red helmet on top
+    sk = [None if p is None else [p[0] * 48, p[1] * 48] for p in keypoints("right")]
+    lying = render(Image.fromarray(a), sk, "right", "death")[-2]
+    red = (np.asarray(lying)[..., :3] == (255, 0, 0)).all(2)
+    assert red.sum() > 0.8 * 200                       # the whole helmet is still there
