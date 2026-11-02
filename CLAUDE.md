@@ -7,7 +7,7 @@
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
-- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 31개 통과).
+- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 33개 통과).
 
 ## 구조
 - `cli.py` 정지 그림: Z-Image로 768x320 캔버스에 4방향을 한 장에 그림(치비 OpenPose 뼈대) → `pixelate.downscale_sprites`로 48px.
@@ -57,6 +57,9 @@
 - `cute little archer girl, green hood, brown leather vest, short brown boots` --seed 5
 - `cute little rogue, black hooded cloak, red scarf over the mouth` --seed 11
 - `cute little barbarian, orange braided hair, fur shoulder pads, bare arms` --seed 2
+
+캐릭터 시험 결과(2026-11-02): 궁수·바바리안·마법사 무난. 도적은 검은 망토가 외곽선과 뭉개져 `lift_darks`로 해결.
+남은 것: 긴 망토가 다리를 덮는 옆모습 걷기(도적)는 망토 아랫단이 다리 따라 들쭉날쭉.
 
 ## 비교하는 법
 같은 배율로 나란히 놓고 본다:
