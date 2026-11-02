@@ -323,3 +323,22 @@ def test_zimage_uses_no_lora_unless_asked():
     assert "lora" not in plain and plain["shift"]["inputs"]["model"] == ["unet", 0]
     styled = zimage_redraw_workflow("knight", "a.png", "b.png", lora="pixel.safetensors")
     assert styled["shift"]["inputs"]["model"] == ["lora", 0]
+
+
+def test_comfy_run_keeps_waiting_when_a_poll_times_out(monkeypatch):
+    from spritehatch.comfy import ComfyClient
+
+    client = ComfyClient()
+    replies = iter([TimeoutError("busy loading a model"),
+                    b'{"p1": {"status": {}, "outputs": {}}}'])
+
+    def fake_get(path):
+        r = next(replies)
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    monkeypatch.setattr(client, "_post", lambda *a: {"prompt_id": "p1"})
+    monkeypatch.setattr(client, "_get", fake_get)
+    monkeypatch.setattr("spritehatch.comfy.time.sleep", lambda s: None)
+    assert client.run({}) == []

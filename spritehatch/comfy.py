@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -61,7 +62,12 @@ class ComfyClient:
         prompt_id = self._post("/prompt", body, "application/json")["prompt_id"]
         deadline = time.time() + self.timeout
         while time.time() < deadline:
-            hist = json.loads(self._get(f"/history/{prompt_id}"))
+            try:
+                hist = json.loads(self._get(f"/history/{prompt_id}"))
+            except (TimeoutError, urllib.error.URLError):
+                # ComfyUI can stall its HTTP replies while it loads a model; keep waiting.
+                time.sleep(2)
+                continue
             if prompt_id in hist:
                 entry = hist[prompt_id]
                 status = entry.get("status", {})
