@@ -3,7 +3,7 @@
 목표: 유료 PixelLab 없이 로컬에서 PixelLab 수준의 게임 픽셀아트(챔피언 48px, 보스 96px,
 아래·왼·오른·위 4방향, 걷기·공격·사망 각 4프레임)를 만드는 것. 나중에 오픈소스로 공개.
 비교 기준: `~/Desktop/defense-of-champions/public/assets/champions/champion_ironguard.webp`
-(PixelLab 결과, 48px 칸 16열×4행, 행 = 아래·왼·오른·위, 0~3열이 걷기).
+(PixelLab 결과, 48px 칸 16열×4행. 행이 방향이 아님: 1행 0~3열 아래 걷기, 2행 0~3열 위 걷기, 3행 0~3열 옆 걷기, 나머지 칸은 공격 등 다른 동작이 이어 붙음).
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
