@@ -28,6 +28,16 @@ takes about 1.5 minutes on an M1 Pro.
 Made with `spritehatch "cute little knight, shiny bright silver armor, blue cape, red
 plume on the helmet" --seed 7`. Raw model output: [examples/knight/raw.png](examples/knight/raw.png)
 
+## More characters
+
+Same settings, only the description and seed change (`--seed` in brackets).
+Walk, attack and death painted over with `--redraw`.
+
+| archer [5] | rogue [11] | barbarian [2] |
+| --- | --- | --- |
+| ![archer](examples/archer/showcase.gif) | ![rogue](examples/rogue/showcase.gif) | ![barbarian](examples/barbarian/showcase.gif) |
+| `cute little archer girl, green hood, brown leather vest, short brown boots` | `cute little rogue, black hooded cloak, red scarf over the mouth` | `cute little barbarian, orange braided hair, fur shoulder pads, bare arms` |
+
 ## Motions
 
 ```bash
