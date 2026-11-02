@@ -7,7 +7,7 @@
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
-- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 25개 통과).
+- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 28개 통과).
 
 ## 구조
 - `cli.py` 정지 그림: Z-Image로 768x320 캔버스에 4방향을 한 장에 그림(치비 OpenPose 뼈대) → `pixelate.downscale_sprites`로 48px.
@@ -41,9 +41,9 @@
    `spritehatch "cute little knight, shiny bright silver armor, blue cape, red plume on the helmet" -o OUT --seed 7`
    → `spritehatch-animate OUT` → `spritehatch-animate OUT --motions walk,attack,death --redraw` → `python -m spritehatch.showcase OUT/anim`
    (설명에 무기를 넣으면 공격 때 칼이 두 개가 됨 — 넣지 말 것)
-2. 사망 동작의 누운 프레임이 거침(AI가 누운 자세를 잘 못 그림).
+2. 사망 누운 프레임: 회전 중심을 몸 가운데로 바꿔 옆모습 머리 잘림 해결, 다시 그리기에서 누운 프레임(가로>1.4×세로)은 리그 그림 유지(`redraw._lying`). 남은 것: 쓰러지는 도중(30~65°) 프레임이 거침.
 3. 반짝이는 갑옷 얼룩: `_flatten`으로 일부 해결(4방향에서 약 55픽셀 정리). 더 하려면 재질별 음영 단계 수 제한 검토.
-4. 앞·뒤 걷기: 다리를 들어 올리던 걸 `squash`(다리를 엉덩이 쪽으로 줄임)로 바꿔 두 다리가 갈려 보임. 남은 문제: 망토 끝이 손 부위로 잘려서 팔 흔들 때 망토가 들썩이고 빈 자리에 흰/회색 얼룩.
+4. 앞·뒤 걷기: 다리를 들어 올리던 걸 `squash`(다리를 엉덩이 쪽으로 줄임)로 바꿔 두 다리가 갈려 보임. 망토 자락은 `rig.LIMB_REACH=1.5`(팔·다리 굵기 1.5배 밖은 몸통)로 몸에 붙임. 지팡이 든 마법사로 확인해도 지팡이 안 쪼개짐. 남은 것: 옆모습 다시 그리기에서 가슴 무늬가 해골처럼 변함.
 5. 몬스터·용 등 사람형이 아닌 것: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
 
 ## 비교하는 법
