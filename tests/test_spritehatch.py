@@ -361,3 +361,18 @@ def test_squash_shortens_a_leg_toward_the_hip():
     m = _squash(0.5, (0, 10))
     assert np.allclose(m @ [3, 10, 1], [3, 10, 1])   # the joint stays
     assert np.allclose(m @ [3, 20, 1], [3, 15, 1])   # the foot comes up halfway
+
+
+def test_far_cape_pixels_stay_on_the_body():
+    import spritehatch.rig as R
+    from spritehatch.pose import keypoints
+
+    img = Image.new("RGBA", (64, 64))
+    sk = [None if p is None else [p[0] * 64, p[1] * 64] for p in keypoints("down")]
+    a = np.zeros((64, 64, 4), np.uint8)
+    a[4:60, 16:48] = (200, 200, 200, 255)
+    a[50:60, 2:62] = (0, 0, 255, 255)          # a wide cape hem far from any limb
+    img = Image.fromarray(a)
+    rig = R.Rig(img, sk, "down")
+    arms = sum(rig.parts[n][..., 3].astype(bool) for n in ("arm_r", "hand_r", "arm_l", "hand_l"))
+    assert not arms[50:60, 2:5].any() and not arms[50:60, 59:62].any()

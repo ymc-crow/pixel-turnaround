@@ -29,6 +29,10 @@ BONES = [
 ]
 NAMES = [b[0] for b in BONES]
 CORE = ("hips", "torso", "head")
+# Pixels farther from an arm or leg than this many of its thicknesses are
+# clothes (a cape, a wide skirt) and stay on the body instead of swinging
+# with the limb. None: every pixel goes to its nearest bone.
+LIMB_REACH: float | None = 1.5
 # The pelvis is a band across both hip joints, not a single point.
 SEGMENT = {"hips": (8, 11)}
 
@@ -109,6 +113,8 @@ class Rig:
             if name == "torso":
                 # Below the belt it is hips or legs, so skirts move with them.
                 d = np.where(below_hip, np.inf, d)
+            elif name not in CORE and LIMB_REACH:
+                d = np.where(d > LIMB_REACH, np.inf, d)
             scores.append(d)
         scores = np.stack(scores)
         label = scores.argmin(axis=0)

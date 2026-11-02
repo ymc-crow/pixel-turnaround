@@ -80,7 +80,8 @@ def walk(view: str) -> list[dict]:
                 # (Lifting the whole leg hid it behind the hips, and turning
                 # hips and chest a few degrees tore holes in a 48 px body.)
                 "squash": {"leg_r": 1 - 0.25 * lift_r, "leg_l": 1 - 0.25 * lift_l},
-                "arm_r": 4 + 8 * lift_l, "arm_l": 4 + 8 * lift_r,
+                # small swings: a cape hanging behind the arms moves with them
+                "arm_r": 2 + 4 * lift_l, "arm_l": 2 + 4 * lift_r,
                 "hand_r": 6, "hand_l": 6,
             })
     return poses
