@@ -37,7 +37,7 @@
 - 앞·뒤 걷기에서 골반·몸통 몇 도 회전: 48px 몸에 구멍. 다리 통째 들기: 치마 뒤로 숨음.
 
 ## 남은 일 (우선순위)
-1. README 예시 교체: `examples/knight`는 아직 LoRA 쓰던 버전. 아래로 다시 만들고 교체.
+1. (완료 2026-11-02) README 예시 교체. 코드가 크게 바뀌면 아래로 다시 만들 것.
    `spritehatch "cute little knight, shiny bright silver armor, blue cape, red plume on the helmet" -o OUT --seed 7`
    → `spritehatch-animate OUT` → `spritehatch-animate OUT --motions walk,attack,death --redraw` → `python -m spritehatch.showcase OUT/anim`
    (설명에 무기를 넣으면 공격 때 칼이 두 개가 됨 — 넣지 말 것)

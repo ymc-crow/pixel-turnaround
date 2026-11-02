@@ -14,7 +14,8 @@ side and back come out as different characters. spritehatch fixes that:
 4. **Real pixels.** The drawing is shrunk to a 48px sprite: colors are picked
    once for all views (small areas like a face get their own), each sprite
    pixel takes a vote over its block (dark lines count extra, so eyes survive),
-   lone specks are removed and a 1px outline goes around. Feet sit on the same
+   lone specks are removed, speckled shading inside one material is
+   flattened (shiny armor reads cleaner) and a 1px outline goes around. Feet sit on the same
    line in every view.
 
 The default model is [Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo)
@@ -44,7 +45,8 @@ The model was asked to follow a pose skeleton, and that skeleton is saved in
 DragonBones work:
 
 1. The standing sprite is cut into head, torso, pelvis, upper/lower arms and legs,
-   each pixel going to the nearest bone.
+   each pixel going to the nearest bone. Pixels far from every arm and leg (a
+   cape hem, a wide skirt) stay on the body instead of swinging with a limb.
 2. Where an arm covered the torso, the torso gets filled-in pixels so a
    moving arm does not leave a hole.
 3. Each motion is a list of joint angles. Parts rotate around their joints,
@@ -88,6 +90,9 @@ The rig frames become a rough draft that the model paints over:
    built from the rig's posed joints keeps every limb where the motion wants it.
 3. Each cell is shrunk back like the stills and drawn only in the colors of
    the standing sprite.
+
+Bodies lying flat keep their rig frame: the model paints them as a heap of
+armor, while the rig frame is the whole standing sprite turned over.
 
 Motions are cut to 4 frames (played slower, so they keep their length). On an
 M1 Pro: about 2-3 minutes per direction for every motion. `--model sdxl` uses
@@ -150,8 +155,8 @@ Options:
   there). Re-roll the seed.
 - Weapons: `attack` draws its own sword. If the description already gives the
   character one, there are two; leave the weapon out of the description.
-- `--redraw` paints lying-down bodies poorly, so the last frames of `death`
-  look rougher than the rest.
+- `death` frames halfway down (tipping 30-65 degrees) look rougher than the
+  rest.
 
 ## License
 
