@@ -7,13 +7,13 @@
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
-- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 30개 통과).
+- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 31개 통과).
 
 ## 구조
 - `cli.py` 정지 그림: Z-Image로 768x320 캔버스에 4방향을 한 장에 그림(치비 OpenPose 뼈대) → `pixelate.downscale_sprites`로 48px.
 - `pixelate.py` 줄이기: 공통 색 고르기(`pick_colors`, √개수 가중 k-means) → 3px 중간값 흐림 → 칸마다 다수결(어두운 색 가중) → 외톨이 점 제거 → 같은 재질 점점이 음영 평평하게(`_flatten`, 이웃 8칸 중 4칸 이상이 가까운 색이면 따라감) → 1px 외곽선. 갇힌 배경(`open_holes`), 떨어진 점(`main_body`) 처리.
 - `moves.py`/`rig.py` 관절 동작(뼈대 리그). `effects.py` 칼·마법·RotSprite 회전.
-- `redraw.py` `--redraw`: 리그 프레임 4장을 2x2 격자로 AI가 다시 그림(img2img + OpenPose), 정지 그림 색만 사용. 쓰러진 프레임도 뼈대를 함께 눕힘. 걷기·대기는 목 위를 리그 머리로 덮음(`_keep_head`, AI가 얼굴을 지워서). 누운 프레임은 리그 그대로.
+- `redraw.py` `--redraw`: 리그 프레임 4장을 2x2 격자로 AI가 다시 그림(img2img + OpenPose), 정지 그림 색만 사용. 쓰러진 프레임도 뼈대를 함께 눕힘. AI에는 몸만 보내고(`render(effects=...)`) 칼·궤적·마법은 다시 그린 뒤 `with_effects`로 얹음. 모든 동작에서 몸이 서 있으면 목 위를 리그 머리로 덮음(`_keep_head`, AI가 얼굴을 지워서). 프롬프트는 '빈손'(칼을 말하면 AI가 칼을 하나 더 그림). 누운 프레임은 리그 그대로.
 - `showcase.py` 모든 동작을 GIF 한 장으로.
 
 ## 환경 (중요)
