@@ -473,3 +473,17 @@ def test_redraw_patches_see_through_spots_the_rig_has_solid():
     assert (out[4:7, 6:9] == rig[4:7, 6:9]).all()
     assert (out[3, 6:9] == rig[3, 6:9]).all()
     assert (out[8:12, 9:11, 3] == 0).all()
+
+
+def test_open_holes_opens_gaps_but_keeps_shine():
+    from spritehatch.pixelate import open_holes
+
+    a = np.full((100, 100, 3), 255, np.uint8)
+    a[10:90, 10:40] = (90, 60, 140)    # robe with a gap of background in it
+    a[30:50, 18:32] = 255
+    a[10:90, 60:90] = (190, 190, 200)  # bright metal with white shine on it
+    a[30:50, 68:82] = 250
+    cell = Image.fromarray(a)
+    fg = open_holes(cell, ~background_mask(cell))
+    assert not fg[40, 25]
+    assert fg[40, 75]

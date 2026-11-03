@@ -221,19 +221,28 @@ def main_body(fg: np.ndarray, keep: float = 0.02) -> np.ndarray:
     return (sizes >= keep * sizes.max())[label] & fg
 
 
-def open_holes(cell: Image.Image, fg: np.ndarray, biggest: float = 0.004,
+def open_holes(cell: Image.Image, fg: np.ndarray, biggest: float = 0.004, shine: float = 170,
                tolerance: float = 40) -> np.ndarray:
     """Background caught between an arm and a staff is enclosed, so the flood
     in background_mask never reaches it. Enclosed patches of background color
     bigger than `biggest` of the cell are background too; smaller ones (eye
-    whites, shine) stay."""
+    whites) stay. So does shine on a helmet or greave: it fades into bright
+    metal, while a real gap borders darker cloth, skin or wood, so it opens
+    only when its edge is darker than `shine` (luma 0-255)."""
     rgb = np.asarray(cell.convert("RGB"), dtype=np.float32)
     border = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
     holes = fg & (np.linalg.norm(rgb - np.median(border, axis=0), axis=2) < tolerance)
     label, sizes = _components(holes)
-    big = sizes > biggest * fg.size
-    big[0] = False
-    return fg & ~big[label]
+    lum = rgb @ LUMA
+    gap = np.zeros(len(sizes), bool)
+    for k in np.nonzero(sizes > biggest * fg.size)[0]:
+        if k == 0:
+            continue
+        spot = label == k
+        p = np.pad(spot, 1)
+        ring = (p[:-2, 1:-1] | p[2:, 1:-1] | p[1:-1, :-2] | p[1:-1, 2:]) & ~spot
+        gap[k] = np.median(lum[ring]) < shine
+    return fg & ~gap[label]
 
 
 LUMA = np.array([0.3, 0.59, 0.11])
