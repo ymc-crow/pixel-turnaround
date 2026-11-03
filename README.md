@@ -15,7 +15,8 @@ side and back come out as different characters. spritehatch fixes that:
    once for all views (small areas like a face get their own), each sprite
    pixel takes a vote over its block (dark lines count extra, so eyes survive),
    lone specks are removed, speckled shading inside one material is
-   flattened (shiny armor reads cleaner) and a 1px outline goes around. Feet sit on the same
+   flattened (shiny armor reads cleaner) and a 1px outline goes around, painted as a
+   dark shade of the color beside it (dark blue by a blue cape), not flat black. Feet sit on the same
    line in every view.
 
 The default model is [Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo)
