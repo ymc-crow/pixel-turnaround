@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from .comfy import WORKFLOWS, ComfyClient
-from .pixelate import LUMA, background_mask, inline, main_body, open_holes, paint_small
+from .pixelate import LUMA, _components, background_mask, inline, main_body, open_holes, paint_small
 from .pose import VIEW_WORDS, draw_cell
 
 # Target cell size. Small on purpose: the model's fake pixels keep their size,
@@ -146,7 +146,7 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
                                                    still.width), pts):
             keep = p is None or _area(new) < 0.5 * _area(rig) or _lying(rig)
             if not keep:
-                new = _keep_head(rig, new, p)
+                new = _keep_head(rig, _patch_holes(rig, new), p)
             out.append(rig if keep else new)
     return out
 
@@ -165,6 +165,27 @@ def _keep_head(rig: Image.Image, new: Image.Image, pts: list) -> Image.Image:
     above = np.zeros(r.shape[:2], bool)
     above[:max(0, round(pts[1][1]))] = True
     n[above] = r[above]
+    return Image.fromarray(n)
+
+
+def _patch_holes(rig: Image.Image, new: Image.Image) -> Image.Image:
+    """Bright armor shine looks like the white background, so the model's
+    painting can come back with see-through spots inside the body. Where
+    the rig frame is solid, an enclosed spot is a mistake: paint it, and the
+    outline ring drawn around it, from the rig frame."""
+    r, n = np.asarray(rig.convert("RGBA")), np.asarray(new.convert("RGBA")).copy()
+    label, _ = _components(n[..., 3] == 0)
+    outside = np.unique(np.concatenate([label[0], label[-1], label[:, 0], label[:, -1]]))
+    hole = (label > 0) & ~np.isin(label, outside) & (r[..., 3] > 0)
+    if not hole.any():
+        return new
+    ring = hole.copy()
+    ring[1:] |= hole[:-1]
+    ring[:-1] |= hole[1:]
+    ring[:, 1:] |= hole[:, :-1]
+    ring[:, :-1] |= hole[:, 1:]
+    ring &= r[..., 3] > 0
+    n[ring] = r[ring]
     return Image.fromarray(n)
 
 

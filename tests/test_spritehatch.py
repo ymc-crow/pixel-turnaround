@@ -458,3 +458,18 @@ def test_black_clothes_are_lifted_off_the_outline():
     lum = out.astype(float) @ LUMA
     assert (out[0] == colors[0]).all() and (out[3] == colors[3]).all()  # outline, red stay
     assert lum[1] >= 40 and lum[2] > lum[1]                            # cloth lifted, in order
+
+
+def test_redraw_patches_see_through_spots_the_rig_has_solid():
+    from spritehatch.redraw import _patch_holes
+
+    rig = np.zeros((20, 20, 4), np.uint8)
+    rig[2:18, 4:16] = (90, 90, 200, 255)
+    rig[8:12, 9:11] = (0, 0, 0, 0)  # a real gap the rig has too
+    new = rig.copy()
+    new[4:7, 6:9] = 0  # see-through spot inside the body
+    new[3, 5:10] = new[7, 5:10] = (10, 10, 10, 255)  # outline ring around it
+    out = np.asarray(_patch_holes(Image.fromarray(rig), Image.fromarray(new)))
+    assert (out[4:7, 6:9] == rig[4:7, 6:9]).all()
+    assert (out[3, 6:9] == rig[3, 6:9]).all()
+    assert (out[8:12, 9:11, 3] == 0).all()
