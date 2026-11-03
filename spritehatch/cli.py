@@ -10,7 +10,15 @@ import numpy as np
 from PIL import Image, ImageOps
 
 from .comfy import ComfyClient, turnaround_workflow, zimage_turnaround_workflow
-from .pixelate import downscale_sprites, preview, sheet, snap_to_grid, split_cells, to_sprites
+from .pixelate import (
+    downscale_sprites,
+    preview,
+    selout,
+    sheet,
+    snap_to_grid,
+    split_cells,
+    to_sprites,
+)
 from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet
 
 # Canvas per model and mode. SDXL wants about one megapixel. Z-Image gets a
@@ -77,7 +85,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
         skeletons[view] = [None if p is None else [round(w - p[0], 1), p[1]]
                            for p in skeletons[source]]
 
-    frames = [drawn[v] for v in spec["order"]]
+    frames = [selout(drawn[v]) for v in spec["order"]]
     out.mkdir(parents=True, exist_ok=True)
     (out / "frames").mkdir(exist_ok=True)
     for view, frame in zip(spec["order"], frames):

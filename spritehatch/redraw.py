@@ -18,7 +18,16 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from .comfy import WORKFLOWS, ComfyClient
-from .pixelate import LUMA, _components, background_mask, inline, main_body, open_holes, paint_small
+from .pixelate import (
+    LUMA,
+    _components,
+    _edge,
+    background_mask,
+    inline,
+    main_body,
+    open_holes,
+    paint_small,
+)
 from .pose import VIEW_WORDS, draw_cell
 
 # Target cell size. Small on purpose: the model's fake pixels keep their size,
@@ -112,9 +121,11 @@ def split_grid(grid: Image.Image, count: int, frame: int, colors: np.ndarray,
 
 
 def sprite_colors(still: Image.Image) -> np.ndarray:
-    """Every color the standing sprite uses."""
+    """Every color the standing sprite uses inside its outline (the outline
+    is a dark shade of each color, put back on at the end by selout)."""
     a = np.asarray(still.convert("RGBA"))
-    return np.unique(a[a[..., 3] > 0][:, :3], axis=0)
+    solid = a[..., 3] > 0
+    return np.unique(a[solid & ~_edge(solid)][:, :3], axis=0)
 
 
 def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,

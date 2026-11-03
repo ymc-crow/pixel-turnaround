@@ -396,11 +396,42 @@ def inline(rgba: np.ndarray, color) -> np.ndarray:
     """Like outline, but on the edge pixels themselves, so the size of the
     silhouette does not change."""
     out = rgba.copy()
-    solid = rgba[..., 3] > 0
-    p = np.pad(solid, 1)
-    edge = solid & ~(p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:])
-    out[edge, :3] = color
+    out[_edge(rgba[..., 3] > 0), :3] = color
     return out
+
+
+def _edge(solid: np.ndarray) -> np.ndarray:
+    p = np.pad(solid, 1)
+    return solid & ~(p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:])
+
+
+def selout(img: Image.Image, depth: float = 0.45, darkest: float = 56) -> Image.Image:
+    """Pixel artists outline a sprite with a dark shade of the color beside
+    it (dark brown next to orange, dark slate next to steel), not one black
+    line, which reads heavy at 48px. Each silhouette pixel takes the color of
+    its inner neighbor, darkened to at most `darkest` luma."""
+    a = np.asarray(img.convert("RGBA")).copy()
+    # See-through effects (a sword trail) are not part of the body.
+    solid = a[..., 3] == 255
+    edge = _edge(solid)
+    h, w = solid.shape
+    pad = np.pad(a, ((2, 2), (2, 2), (0, 0)))
+    # A colored neighbor: inside the silhouette and not part of the dark
+    # line itself (the model often paints the outline two pixels thick).
+    ok = np.pad(solid & ~edge & (a[..., :3] @ LUMA > darkest), 2)
+    todo = edge.copy()
+    # Straight neighbors first (a diagonal one is often across a corner),
+    # then two steps in, past a doubled line.
+    steps = ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1))
+    for k in (1, 2):
+        for dy, dx in steps:
+            y, x = 2 + k * dy, 2 + k * dx
+            take = todo & ok[y:y + h, x:x + w]
+            rgb = pad[y:y + h, x:x + w][take][:, :3].astype(float)
+            lum = np.maximum(rgb @ LUMA, 1)
+            a[take, :3] = (rgb * np.minimum(depth, darkest / lum)[:, None]).round()
+            todo &= ~take
+    return Image.fromarray(a)
 
 
 def sheet(sprites: list[Image.Image]) -> Image.Image:

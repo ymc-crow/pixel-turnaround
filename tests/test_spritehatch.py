@@ -487,3 +487,18 @@ def test_open_holes_opens_gaps_but_keeps_shine():
     fg = open_holes(cell, ~background_mask(cell))
     assert not fg[40, 25]
     assert fg[40, 75]
+
+
+def test_selout_shades_the_outline_with_the_color_inside():
+    from spritehatch.pixelate import LUMA, selout
+
+    a = np.zeros((12, 12, 4), np.uint8)
+    a[2:10, 2:10] = (20, 20, 20, 255)          # black outline
+    a[3:9, 3:6] = (40, 90, 230, 255)           # blue cape
+    a[3:9, 6:9] = (230, 140, 30, 255)          # orange armor
+    out = np.asarray(selout(Image.fromarray(a)))
+    left, right = out[5, 2, :3].astype(int), out[5, 9, :3].astype(int)
+    assert left[2] > left[0] and right[0] > right[2]       # each keeps its hue
+    assert left @ LUMA <= 57 and right @ LUMA <= 57        # and stays dark
+    assert (out[3:9, 3:9] == a[3:9, 3:9]).all()            # inside untouched
+    assert (out[..., 3] == a[..., 3]).all()

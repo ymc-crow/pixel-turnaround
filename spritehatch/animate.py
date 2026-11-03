@@ -26,7 +26,7 @@ from PIL import Image, ImageOps
 
 from .comfy import WORKFLOWS, ComfyClient
 from .moves import MOTIONS, render, with_effects
-from .pixelate import preview, sheet
+from .pixelate import preview, selout, sheet
 from .redraw import GROUP, every_nth, redraw
 
 ORDER = ["down", "left", "right", "up"]
@@ -116,7 +116,7 @@ def main(argv=None) -> None:
                             steps=args.steps)
             drawn[d] = [with_effects(f, lay) for f, lay in zip(frames, layers)]
         drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
-        rows = [drawn[d] for d in ORDER]
+        rows = [[selout(f) for f in drawn[d]] for d in ORDER]
         # Fewer frames play slower, so the motion keeps its length.
         ms = round(ms * len(MOTIONS[name][0]("right")) / len(rows[0]))
         stack(rows).save(out / f"{name}.png")
