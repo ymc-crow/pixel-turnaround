@@ -347,7 +347,8 @@ def outline(rgba: np.ndarray, color) -> np.ndarray:
 
 
 def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32,
-                      dark_weight: float = 2.0, method: str = "distinct") -> list[Image.Image]:
+                      dark_weight: float = 2.0, method: str = "distinct",
+                      smooth: int | None = None) -> list[Image.Image]:
     """Like to_sprites, for models whose fake pixels do not sit on a grid.
 
     Colors are picked once at full size from every view, then each sprite
@@ -365,10 +366,15 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
 
     margin = 1                           # room for the outline
     scale = (size - 2 * margin) / max(max(rgb.shape[:2]) for rgb, _, _ in cut)
+    if smooth is None:
+        # A median about 3/4 of a sprite pixel wide (5 for our 768 canvas)
+        # calms the hard black and white specks the model leaves on shiny
+        # armor; anything a whole sprite pixel wide, like an eye, survives.
+        smooth = max(3, 2 * round((0.75 / scale - 1) / 2) + 1)
     sprites = []
     for rgb, fg, (x0, y0) in cut:
         h, w = max(1, round(rgb.shape[0] * scale)), max(1, round(rgb.shape[1] * scale))
-        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight, shown=shown)
+        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight, smooth, shown=shown)
         rgba = np.zeros((size, size, 4), np.uint8)
         left, top = (size - w) // 2, size - margin - h
         rgba[top:top + h, left:left + w] = small
