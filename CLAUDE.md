@@ -65,7 +65,9 @@
    다시 그리기에도 `spritehatch-animate --style-lora`로 걸 수 있음. 2026-11-04 바바리안 걷기 비교: 차이 작음
    (뒷모습 머리끝이 덜 지저분, 앞모습 두 다리 갈림은 조금 약해짐). 다시 그리기엔 굳이 안 걸어도 됨.
    비교 그림 `~/Desktop/spritehatch-train/exp/redraw/cmp.png`.
-   다음: 얼굴 또렷한 공개 스프라이트 더 모아 다시 학습.
+   다음: 얼굴 또렷한 공개 스프라이트 더 모아 다시 학습. 2026-11-04 조사: 학습 데이터 43명 중 eldiran 6명이 '얼굴 없음' 스타일
+   → 강도 1.0에서 눈 없는 얼굴이 나온 원인 후보. 다시 학습 때 빼고, 후보 2명(`~/Desktop/spritehatch-train/new_raw/후보.md`) 추가.
+   학습은 약 5시간·컴퓨터 느려짐 → 사용자가 안 쓸 때(밤) `caffeinate`로 돌릴 것.
 7. 몬스터·용 등 사람형이 아닌 것: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
 
 ## 여러 캐릭터 시험 (기사만 보고 다듬지 말 것)
