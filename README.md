@@ -39,6 +39,21 @@ Walk, attack and death painted over with `--redraw`.
 | ![archer](examples/archer/showcase.gif) | ![rogue](examples/rogue/showcase.gif) | ![barbarian](examples/barbarian/showcase.gif) |
 | `cute little archer girl, green hood, brown leather vest, short brown boots` | `cute little rogue, black hooded cloak, red scarf over the mouth` | `cute little barbarian, orange braided hair, fur shoulder pads, bare arms` |
 
+## Creatures
+
+`--creature` drops the human body from the prompt and the skeleton from the
+motions: creatures squash, hop, lunge and tip over whole (seed 4).
+
+```bash
+spritehatch --creature "cute little green slime monster with big eyes" -o out/slime --seed 4
+spritehatch-animate out/slime
+```
+
+| slime | bat | baby dragon |
+| --- | --- | --- |
+| ![slime](examples/creatures/slime.gif) | ![bat](examples/creatures/bat.gif) | ![dragon](examples/creatures/dragon.gif) |
+| `cute little green slime monster with big eyes` | `cute little purple bat with big ears` | `cute little baby red dragon with small wings, four legs` |
+
 ## Motions
 
 ```bash
