@@ -48,6 +48,7 @@
    `spritehatch "cute little knight, shiny bright silver armor, blue cape, red plume on the helmet" -o OUT --seed 7`
    → `spritehatch-animate OUT` → `spritehatch-animate OUT --motions walk,attack,death --redraw` → `python -m spritehatch.showcase OUT/anim`
    (설명에 무기를 넣으면 공격 때 칼이 두 개가 됨 — 넣지 말 것)
+   `--from-raw`로 다시 자를 때도 진짜 설명을 넣을 것(sheet.json `character`가 다시 그리기 프롬프트로 감. 2026-11-04 예시가 'x'로 저장돼 있던 것 고침).
 2. 사망 누운 프레임: 회전 중심을 몸 가운데로 바꿔 옆모습 머리 잘림 해결, 다시 그리기에서 누운 프레임(가로>1.4×세로)은 리그 그림 유지(`redraw._lying`). 쓰러지는 도중(30~65°)은 웅크린 자세 대신 곧게 편 몸을 기울임(조각남 해결). 사망도 몸이 서 있는 동안은 리그 머리 유지.
 3. 반짝이는 갑옷 얼룩: `_flatten`으로 일부 해결(4방향에서 약 55픽셀 정리). 2026-11-04 `_merge_rare` 추가: 스프라이트 안에서
    2픽셀 이하로 쓰인 색을 이웃의 같은 재질 색으로 합침(PixelLab은 이런 색 1~2개, 우리 기사 옆 11→6). 5캐릭터 모두 눈·수정 그대로.
