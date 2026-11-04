@@ -64,7 +64,8 @@ def _area(sprite: Image.Image) -> int:
 
 
 def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
-          character: str | None = None, model: str = "zimage") -> None:
+          character: str | None = None, model: str = "zimage",
+          swap_sides: bool = False) -> None:
     spec = MODES[mode]
     count = len(spec["draw"])
     if model == "sdxl":
@@ -84,6 +85,11 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
         w = drawn[source].width
         skeletons[view] = [None if p is None else [round(w - p[0], 1), p[1]]
                            for p in skeletons[source]]
+        if swap_sides:
+            # Without the pose guide the model may draw both profiles facing
+            # the wrong way round.
+            drawn[view], drawn[source] = drawn[source], drawn[view]
+            skeletons[view], skeletons[source] = skeletons[source], skeletons[view]
 
     frames = [selout(drawn[v]) for v in spec["order"]]
     out.mkdir(parents=True, exist_ok=True)
@@ -116,6 +122,11 @@ def main(argv=None) -> None:
     ap.add_argument("--style-lora", default=None,
                     help="zimage only: a LoRA in ComfyUI's models/loras (e.g. one trained on 48px sprites)")
     ap.add_argument("--style-strength", type=float, default=0.5, help="strength of --style-lora")
+    ap.add_argument("--pose-strength", type=float, default=0.8,
+                    help="zimage: how closely to follow the chibi skeleton; 0 for creatures "
+                         "(dragons, slimes) the human skeleton does not fit")
+    ap.add_argument("--swap-sides", action="store_true",
+                    help="swap the left and right views (when they come out facing backwards)")
     ap.add_argument("--controlnet", default="OpenPoseXL2.safetensors")
     ap.add_argument("--from-raw", type=Path,
                     help="skip generation and re-cut an existing raw.png")
@@ -124,7 +135,7 @@ def main(argv=None) -> None:
 
     if args.from_raw:
         build(Image.open(args.from_raw), args.directions, args.size, args.colors, out,
-              args.character, args.model)
+              args.character, args.model, args.swap_sides)
         print(f"done: {out / 'sheet.png'}")
         return
     if not args.character:
@@ -140,6 +151,7 @@ def main(argv=None) -> None:
     if args.model == "zimage":
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
                                               height=height, seed=seed, steps=args.steps or 8,
+                                              control_strength=args.pose_strength,
                                               lora=args.style_lora,
                                               lora_strength=args.style_strength)
     else:
@@ -153,7 +165,8 @@ def main(argv=None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     raw.save(out / "raw.png")
     pose.save(out / "pose.png")
-    build(raw, args.directions, args.size, args.colors, out, args.character, args.model)
+    build(raw, args.directions, args.size, args.colors, out, args.character, args.model,
+          args.swap_sides)
     print(f"done: {out / 'sheet.png'}  (seed {seed})")
 
 

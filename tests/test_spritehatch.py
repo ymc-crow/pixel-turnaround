@@ -523,3 +523,20 @@ def test_selout_shades_the_outline_with_the_color_inside():
     assert left @ LUMA <= 57 and right @ LUMA <= 57        # and stays dark
     assert (out[3:9, 3:9] == a[3:9, 3:9]).all()            # inside untouched
     assert (out[..., 3] == a[..., 3]).all()
+
+
+def test_swap_sides_trades_the_left_and_right_views(tmp_path):
+    from spritehatch.cli import build
+
+    cells = []
+    for _ in range(4):
+        a = np.full((320, 192, 3), 255, np.uint8)
+        a[60:300, 60:130] = (40, 40, 160)
+        a[80:120, 110:150] = (200, 30, 30)          # a red snout: only one side
+        cells.append(a)
+    raw = Image.fromarray(np.concatenate(cells, axis=1))
+    build(raw, "4", 48, 8, tmp_path / "a", "x")
+    build(raw, "4", 48, 8, tmp_path / "b", "x", swap_sides=True)
+    frame = lambda d, v: np.asarray(Image.open(tmp_path / d / "frames" / f"{v}.png"))
+    assert (frame("b", "right") == frame("a", "left")).all()
+    assert (frame("b", "left") == frame("a", "right")).all()
