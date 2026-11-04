@@ -60,7 +60,10 @@
    2026-11-04 4캐릭터(마법사·궁수·도적·바바리안) 정지 그림 비교: 깨짐 없음, 마법사·바바리안은 눈·버클 또렷, 궁수·도적은 비슷.
    → `spritehatch ... --style-lora spritehatch_e258.safetensors`(강도 기본 0.5)로 넣음. 학습본을 레포에 안 올려서 기본값은 꺼둠.
    비교 그림 `~/Desktop/spritehatch-train/exp/chars/cmp.png`, 스크립트 `exp/chars_try.py`.
-   다음: 다시 그리기(`redraw`)에도 같은 LoRA를 걸어 동작 프레임 비교, 얼굴 또렷한 공개 스프라이트 더 모으기.
+   다시 그리기에도 `spritehatch-animate --style-lora`로 걸 수 있음. 2026-11-04 바바리안 걷기 비교: 차이 작음
+   (뒷모습 머리끝이 덜 지저분, 앞모습 두 다리 갈림은 조금 약해짐). 다시 그리기엔 굳이 안 걸어도 됨.
+   비교 그림 `~/Desktop/spritehatch-train/exp/redraw/cmp.png`.
+   다음: 얼굴 또렷한 공개 스프라이트 더 모아 다시 학습.
 7. 몬스터·용 등 사람형이 아닌 것: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
 
 ## 여러 캐릭터 시험 (기사만 보고 다듬지 말 것)
