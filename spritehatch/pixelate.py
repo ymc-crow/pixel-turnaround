@@ -216,9 +216,14 @@ def _components(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 def main_body(fg: np.ndarray, keep: float = 0.02) -> np.ndarray:
     """Drop specks floating away from the character (sparkles, dust): parts
-    smaller than `keep` of the biggest one go."""
+    smaller than `keep` of the biggest one go. So do loose parts cut by the
+    cell's left or right edge: a wing tip of the neighbor's character
+    reaching over the line."""
     label, sizes = _components(fg)
-    return (sizes >= keep * sizes.max())[label] & fg
+    ok = sizes >= keep * sizes.max()
+    cut = np.unique(np.concatenate([label[:, 0], label[:, -1]]))
+    ok[cut[(cut > 0) & (cut != sizes.argmax())]] = False
+    return ok[label] & fg
 
 
 def open_holes(cell: Image.Image, fg: np.ndarray, biggest: float = 0.004, shine: float = 170,

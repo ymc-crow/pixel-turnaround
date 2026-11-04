@@ -552,3 +552,13 @@ def test_creature_prompt_drops_the_chibi_body():
     creature = zimage_turnaround_workflow("slime", "p.png", ["front"], creature=True)
     assert "heads tall" in text(person) and "heads tall" not in text(creature)
 
+
+def test_main_body_drops_a_neighbors_wing_tip_at_the_cell_edge():
+    from spritehatch.pixelate import main_body
+
+    fg = np.zeros((40, 40), bool)
+    fg[5:35, 15:25] = True              # the character
+    fg[10:20, 0:4] = True               # a wing tip over the left edge
+    fg[30:33, 30:33] = True             # a loose part inside the cell
+    out = main_body(fg)
+    assert out[20, 20] and not out[15, 1] and out[31, 31]
