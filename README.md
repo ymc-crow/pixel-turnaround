@@ -157,7 +157,14 @@ Options:
 - `--colors 32`: shared palette size.
 - `--model sdxl`: the older SDXL path (bigger canvas, grid snapping).
 - `--seed N`: repeat a result.
-- `--from-raw raw.png`: re-cut an existing image without generating again.
+- `--from-raw raw.png`: re-cut an existing image without generating again. Pass the
+  real description too: `spritehatch-animate --redraw` reuses it as the prompt.
+- `--pose-strength 0.8`: how closely the chibi skeleton is followed. Use `0` for
+  creatures it does not fit (a baby dragon, a slime).
+- `--swap-sides`: swap `left` and `right` when the profiles come out facing
+  backwards (happens with `--pose-strength 0`).
+- `--style-lora file.safetensors` (`--style-strength 0.5`): add a LoRA from
+  ComfyUI's `models/loras`, such as one trained on small sprites.
 
 ## Limits
 
@@ -167,6 +174,8 @@ Options:
   there). Re-roll the seed.
 - Weapons: `attack` draws its own sword. If the description already gives the
   character one, there are two; leave the weapon out of the description.
+- Creatures: `--pose-strength 0` draws good stills, but the motions move a
+  human skeleton, so they only suit creatures that stand like one.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 

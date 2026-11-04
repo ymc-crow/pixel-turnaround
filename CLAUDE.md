@@ -7,7 +7,7 @@
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
-- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 38개 통과).
+- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 39개 통과).
 
 ## 구조
 - `cli.py` 정지 그림: Z-Image로 768x320 캔버스에 4방향을 한 장에 그림(치비 OpenPose 뼈대) → `pixelate.downscale_sprites`로 48px.
@@ -71,7 +71,9 @@
    다음: 얼굴 또렷한 공개 스프라이트 더 모아 다시 학습. 2026-11-04 조사: 학습 데이터 43명 중 eldiran 6명이 '얼굴 없음' 스타일
    → 강도 1.0에서 눈 없는 얼굴이 나온 원인 후보. 다시 학습 때 빼고, 후보 2명(`~/Desktop/spritehatch-train/new_raw/후보.md`) 추가.
    학습은 약 5시간·컴퓨터 느려짐 → 사용자가 안 쓸 때(밤) `caffeinate`로 돌릴 것.
-7. 몬스터·용 등 사람형이 아닌 것: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
+7. (일부 해결 2026-11-04) `--pose-strength 0`이면 아기 용이 4방향으로 깔끔하게 나옴(seed 4). 단 옆모습이 반대로 나올 수 있어
+   `--swap-sides` 둠(눈 위치로 자동 판정 시험 → 마법사 틀림, 버림). 슬라임은 프롬프트의 '2.5등신·다리' 때문에 사람 몸이 됨 → 생물용 프롬프트 필요.
+   동작은 사람 뼈대라 서 있는 생물만 맞음. 예전 메모: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
 
 ## 여러 캐릭터 시험 (기사만 보고 다듬지 말 것)
 개선 후 기사 말고도 아래 캐릭터로 정지 그림 + 동작을 만들어 깨지는 데가 없는지 볼 것
