@@ -131,7 +131,8 @@ def sprite_colors(still: Image.Image) -> np.ndarray:
 def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
            character: str, view: str, motion: str, client: ComfyClient,
            denoise: float = 0.6, seed: int = 0, model: str = "zimage",
-           steps: int | None = None) -> list[Image.Image]:
+           steps: int | None = None, lora: str | None = None,
+           lora_strength: float = 0.5) -> list[Image.Image]:
     """Paint over all frames of one motion and view, four at a time.
 
     Some frames keep their rig drawing: ones without a skeleton (nothing to
@@ -143,6 +144,7 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
         denoise = min(denoise, SIDE_DENOISE)
     prompt = PROMPT.format(n=GROUP, action=ACTION.get(motion, motion),
                            view=VIEW_WORDS[view], character=character)
+    style = {"lora": lora, "lora_strength": lora_strength} if lora else {}
     out = []
     for g in range(0, len(frames), GROUP):
         part, pts = frames[g:g + GROUP], keypoints[g:g + GROUP]
@@ -151,7 +153,7 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
         wf = WORKFLOWS[model](prompt, client.upload_image(draft, f"{tag}_draft.png"),
                              client.upload_image(pose, f"{tag}_pose.png"),
                              denoise=denoise, seed=seed,
-                             steps=steps or STEPS.get(model, 30))
+                             steps=steps or STEPS.get(model, 30), **style)
         painted = client.run(wf)[0]
         for rig, new, p in zip(part, split_grid(painted, len(part), part[0].width, colors,
                                                    still.width), pts):

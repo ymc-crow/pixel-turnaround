@@ -72,6 +72,9 @@ def main(argv=None) -> None:
     ap.add_argument("--steps", type=int, default=None,
                     help="sampling steps per --redraw grid (zimage: 6; 4 is twice as fast "
                          "for a quick look, small marks melt)")
+    ap.add_argument("--style-lora", default=None,
+                    help="a LoRA in ComfyUI's models/loras for --redraw (as in spritehatch)")
+    ap.add_argument("--style-strength", type=float, default=0.5, help="strength of --style-lora")
     ap.add_argument("--server", default="http://127.0.0.1:8188")
     args = ap.parse_args(argv)
 
@@ -113,7 +116,8 @@ def main(argv=None) -> None:
             frames = redraw(frames, pts, still=stills[d], character=meta.get("character", ""),
                             view=d, motion=name, client=client,
                             denoise=args.denoise, seed=args.seed, model=args.model,
-                            steps=args.steps)
+                            steps=args.steps, lora=args.style_lora,
+                            lora_strength=args.style_strength)
             drawn[d] = [with_effects(f, lay) for f, lay in zip(frames, layers)]
         drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
         rows = [[selout(f) for f in drawn[d]] for d in ORDER]
