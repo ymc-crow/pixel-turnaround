@@ -540,3 +540,15 @@ def test_swap_sides_trades_the_left_and_right_views(tmp_path):
     frame = lambda d, v: np.asarray(Image.open(tmp_path / d / "frames" / f"{v}.png"))
     assert (frame("b", "right") == frame("a", "left")).all()
     assert (frame("b", "left") == frame("a", "right")).all()
+
+
+def test_creature_prompt_drops_the_chibi_body():
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    def text(wf):
+        return " ".join(str(n["inputs"].get("text", "")) for n in wf.values())
+
+    person = zimage_turnaround_workflow("slime", "p.png", ["front"])
+    creature = zimage_turnaround_workflow("slime", "p.png", ["front"], creature=True)
+    assert "heads tall" in text(person) and "heads tall" not in text(creature)
+

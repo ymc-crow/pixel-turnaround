@@ -125,12 +125,19 @@ def main(argv=None) -> None:
     ap.add_argument("--pose-strength", type=float, default=0.8,
                     help="zimage: how closely to follow the chibi skeleton; 0 for creatures "
                          "(dragons, slimes) the human skeleton does not fit")
+    ap.add_argument("--creature", action="store_true",
+                    help="zimage: a creature, not a person (prompt without chibi body words, "
+                         "--pose-strength 0, --swap-sides)")
     ap.add_argument("--swap-sides", action="store_true",
                     help="swap the left and right views (when they come out facing backwards)")
     ap.add_argument("--controlnet", default="OpenPoseXL2.safetensors")
     ap.add_argument("--from-raw", type=Path,
                     help="skip generation and re-cut an existing raw.png")
     args = ap.parse_args(argv)
+    if args.creature:
+        # Drawn freely, the model turns both profiles to face left, so the
+        # sides always come out swapped (dragon, slime, wolf).
+        args.pose_strength, args.swap_sides = 0.0, True
     out = Path(args.out)
 
     if args.from_raw:
@@ -152,6 +159,7 @@ def main(argv=None) -> None:
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
                                               height=height, seed=seed, steps=args.steps or 8,
                                               control_strength=args.pose_strength,
+                                              creature=args.creature,
                                               lora=args.style_lora,
                                               lora_strength=args.style_strength)
     else:

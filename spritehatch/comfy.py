@@ -181,12 +181,23 @@ ZIMAGE_PROMPT = (
 )
 
 
+# For creatures the chibi-human words ("2.5 heads tall", "legs") turn a slime
+# into a little person, so they are left out.
+CREATURE_PROMPT = (
+    "creature turnaround sprite sheet, the same creature shown {count} times in a row: "
+    "{views}. {character}. Cute, small and round, full body, simple shapes, big readable "
+    "features. Clean black outlines, bright vibrant colors, cel shading with bright "
+    "highlights. Identical colors in every view, plain white background, game sprite."
+)
+
+
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
                                width: int = 768, height: int = 320, seed: int = 0,
                                steps: int = 8, control_strength: float = 0.8,
-                               lora: str | None = None, lora_strength: float = 0.5) -> dict:
+                               lora: str | None = None, lora_strength: float = 0.5,
+                               creature: bool = False) -> dict:
     """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
-    prompt = ZIMAGE_PROMPT.format(count=len(views), views=", ".join(views), character=character)
+    prompt = (CREATURE_PROMPT if creature else ZIMAGE_PROMPT).format(count=len(views), views=", ".join(views), character=character)
     wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
                                 steps=steps, control_strength=control_strength,
                                 lora=lora, lora_strength=lora_strength)
