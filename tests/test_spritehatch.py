@@ -365,6 +365,17 @@ def test_flatten_merges_close_shades_but_keeps_far_colors():
     assert out[2, 2] == 0 and out[1, 1] == 2
 
 
+def test_merge_rare_folds_a_lone_shade_but_keeps_a_lone_eye():
+    from spritehatch.pixelate import _merge_rare
+
+    colors = np.array([[150, 150, 150], [175, 175, 175], [10, 10, 10]], np.uint8)
+    idx = np.zeros((5, 5), int)
+    idx[0, 0] = 1                      # one lighter metal pixel: merged
+    idx[3, 3] = 2                      # one dark eye: kept
+    out = _merge_rare(idx, np.ones((5, 5), bool), colors)
+    assert out[0, 0] == 0 and out[3, 3] == 2
+
+
 def test_squash_shortens_a_leg_toward_the_hip():
     from spritehatch.rig import _squash
 

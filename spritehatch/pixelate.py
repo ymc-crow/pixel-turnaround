@@ -314,6 +314,26 @@ def _flatten(idx: np.ndarray, alpha: np.ndarray, colors: np.ndarray, near: float
     return out
 
 
+def _merge_rare(idx: np.ndarray, alpha: np.ndarray, colors: np.ndarray, near: float = 80,
+                rare: int = 2) -> np.ndarray:
+    """A shade used by only a pixel or two in the whole sprite reads as a
+    speck (hand-made sprites have almost none). It takes the most common
+    close shade (same material) among its 8 neighbors. A lone eye or
+    highlight far in color from its neighbors stays."""
+    rgb = colors.astype(np.float32)
+    close = np.linalg.norm(rgb[:, None] - rgb[None], axis=2) < near
+    count = np.bincount(idx[alpha], minlength=len(colors))
+    out = idx.copy()
+    h, w = idx.shape
+    for y, x in zip(*np.nonzero(alpha & (count[idx] <= rare))):
+        y0, y1, x0, x1 = max(y - 1, 0), min(y + 2, h), max(x - 1, 0), min(x + 2, w)
+        nb = idx[y0:y1, x0:x1][alpha[y0:y1, x0:x1]]
+        nb = nb[(nb != idx[y, x]) & close[idx[y, x], nb]]
+        if len(nb):
+            out[y, x] = np.bincount(nb).argmax()
+    return out
+
+
 def outline(rgba: np.ndarray, color) -> np.ndarray:
     """1px outline around the silhouette, the way hand-made sprites read at
     small sizes."""
@@ -380,12 +400,13 @@ def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: 
     """Big drawing -> small RGBA in the given colors: a light median blur
     first (the model's shading is speckled; flat areas read better small),
     then nearest color at full size, a weighted vote per sprite pixel, lone
-    light specks removed, and speckled shading of one material flattened."""
+    light specks removed, speckled shading of one material flattened, and
+    shades used by only a pixel or two merged into a neighbor."""
     rgb = np.asarray(Image.fromarray(rgb).filter(ImageFilter.MedianFilter(smooth))) if smooth else rgb
     lum = colors @ LUMA
     weight = 1 + dark_weight * (1 - lum / 255) ** 2
     idx, alpha = _vote_shrink(nearest(rgb, colors), fg, size, weight)
-    idx = _flatten(_drop_strays(idx, alpha, lum), alpha, colors)
+    idx = _merge_rare(_flatten(_drop_strays(idx, alpha, lum), alpha, colors), alpha, colors)
     out = np.zeros((size[1], size[0], 4), np.uint8)
     out[..., :3] = (colors if shown is None else shown)[idx]
     out[..., 3] = alpha * 255
