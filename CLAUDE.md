@@ -7,7 +7,7 @@
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
-- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 36개 통과).
+- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 38개 통과).
 
 ## 구조
 - `cli.py` 정지 그림: Z-Image로 768x320 캔버스에 4방향을 한 장에 그림(치비 OpenPose 뼈대) → `pixelate.downscale_sprites`로 48px.
@@ -49,7 +49,9 @@
    → `spritehatch-animate OUT` → `spritehatch-animate OUT --motions walk,attack,death --redraw` → `python -m spritehatch.showcase OUT/anim`
    (설명에 무기를 넣으면 공격 때 칼이 두 개가 됨 — 넣지 말 것)
 2. 사망 누운 프레임: 회전 중심을 몸 가운데로 바꿔 옆모습 머리 잘림 해결, 다시 그리기에서 누운 프레임(가로>1.4×세로)은 리그 그림 유지(`redraw._lying`). 쓰러지는 도중(30~65°)은 웅크린 자세 대신 곧게 편 몸을 기울임(조각남 해결). 사망도 몸이 서 있는 동안은 리그 머리 유지.
-3. 반짝이는 갑옷 얼룩: `_flatten`으로 일부 해결(4방향에서 약 55픽셀 정리). 더 하려면 재질별 음영 단계 수 제한 검토.
+3. 반짝이는 갑옷 얼룩: `_flatten`으로 일부 해결(4방향에서 약 55픽셀 정리). 2026-11-04 `_merge_rare` 추가: 스프라이트 안에서
+   2픽셀 이하로 쓰인 색을 이웃의 같은 재질 색으로 합침(PixelLab은 이런 색 1~2개, 우리 기사 옆 11→6). 5캐릭터 모두 눈·수정 그대로.
+   더 하려면 재질별 음영 단계 수 제한 검토.
 4. 앞·뒤 걷기: 다리를 들어 올리던 걸 `squash`(다리를 엉덩이 쪽으로 줄임)로 바꿔 두 다리가 갈려 보임. 망토 자락은 `rig.LIMB_REACH=1.5`(팔·다리 굵기 1.5배 밖은 몸통)로 몸에 붙임. 지팡이 든 마법사로 확인해도 지팡이 안 쪼개짐. 옆모습 가슴 해골 무늬는 반사광 구멍 수정(2026-11-03) 후 사라짐.
 5. (해결) 효과 칼: 선으로 그리던 걸 손으로 찍은 칼 그림을 RotSprite로 돌리게 바꿈(`effects._sword_sprite`).
 6. 근본 해결 후보(2026-11-03 조사): 48px 원본 크기 스프라이트로 우리 LoRA 학습. 맥은 공식 mflux(`uv tool install --python 3.13 mflux==0.23.0 --with 'pillow<13'`)의 `mflux-train`이 Z-Image 학습 지원(quantize 8 + gradient_checkpointing + low_ram). 단 모델 약 31GB를 따로 받아야 해서 사용자 회사 업무 때문에 보류. 시험 설정은 기사 등 20장×512px. 데이터는 공개 라이선스(CC0) 스프라이트 필요.
