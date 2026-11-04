@@ -24,6 +24,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
+from . import creature as beast
 from .comfy import WORKFLOWS, ComfyClient
 from .moves import MOTIONS, render, with_effects
 from .pixelate import preview, selout, sheet
@@ -53,6 +54,28 @@ def save_gif(frames: list[Image.Image], path: Path, ms: int, zoom: int = 6,
     if hold:
         durations[-1] = hold
     big[0].save(path, save_all=True, append_images=big[1:], duration=durations, loop=0)
+
+
+def _save_motion(out: Path, result: dict, name: str, rows: list, ms: int) -> None:
+    stack(rows).save(out / f"{name}.png")
+    for d, frames in zip(ORDER, rows):
+        save_gif(frames, out / f"{name}_{d}.gif", ms, hold=HOLD.get(name))
+    result["motions"][name] = {"file": f"{name}.png", "frame": rows[0][0].width,
+                               "frames": len(rows[0]), "ms": ms}
+
+
+def _creature(stills: dict, args, out: Path) -> None:
+    """Creatures have no skeleton: they squash, hop and tip over whole."""
+    names = args.motions.split(",") if args.motions != ",".join(MOTIONS) else list(beast.MOTIONS)
+    index = out / "anim.json"
+    result = json.loads(index.read_text()) if index.exists() else {"rows": ORDER, "motions": {}}
+    for name in names:
+        if name not in beast.MOTIONS:
+            raise SystemExit(f"creatures have: {', '.join(beast.MOTIONS)}")
+        rows = [[selout(f) for f in beast.render(stills[d], d, name)] for d in ORDER]
+        _save_motion(out, result, name, rows, beast.MOTIONS[name][1])
+    index.write_text(json.dumps(result, indent=2))
+    print(f"done: {out}")
 
 
 def main(argv=None) -> None:
@@ -87,6 +110,9 @@ def main(argv=None) -> None:
     out = src / "anim"
     out.mkdir(exist_ok=True)
     stills = {d: Image.open(src / "frames" / f"{d}.png").convert("RGBA") for d in ORDER}
+    if meta.get("creature"):
+        _creature(stills, args, out)
+        return
     client = ComfyClient(args.server) if args.redraw else None
 
     # Add to what an earlier run made, so motions can be made (or redrawn) a
@@ -123,11 +149,7 @@ def main(argv=None) -> None:
         rows = [[selout(f) for f in drawn[d]] for d in ORDER]
         # Fewer frames play slower, so the motion keeps its length.
         ms = round(ms * len(MOTIONS[name][0]("right")) / len(rows[0]))
-        stack(rows).save(out / f"{name}.png")
-        for d, frames in zip(ORDER, rows):
-            save_gif(frames, out / f"{name}_{d}.gif", ms, hold=HOLD.get(name))
-        result["motions"][name] = {"file": f"{name}.png", "frame": rows[0][0].width,
-                                   "frames": len(rows[0]), "ms": ms}
+        _save_motion(out, result, name, rows, ms)
         # Saved after every motion, so a run that fails later (ComfyUI timing
         # out) still leaves anim.json matching the sheets on disk.
         index.write_text(json.dumps(result, indent=2))

@@ -65,7 +65,7 @@ def _area(sprite: Image.Image) -> int:
 
 def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
           character: str | None = None, model: str = "zimage",
-          swap_sides: bool = False) -> None:
+          swap_sides: bool = False, creature: bool = False) -> None:
     spec = MODES[mode]
     count = len(spec["draw"])
     if model == "sdxl":
@@ -101,6 +101,8 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
     preview(full).save(out / "preview.png")
     meta = {"frame": frames[0].width, "order": spec["order"], "character": character,
             "skeleton": {v: skeletons[v] for v in spec["order"]}}
+    if creature:
+        meta["creature"] = True             # spritehatch-animate hops it instead
     (out / "sheet.json").write_text(json.dumps(meta, indent=2))
 
 
@@ -142,7 +144,7 @@ def main(argv=None) -> None:
 
     if args.from_raw:
         build(Image.open(args.from_raw), args.directions, args.size, args.colors, out,
-              args.character, args.model, args.swap_sides)
+              args.character, args.model, args.swap_sides, args.creature)
         print(f"done: {out / 'sheet.png'}")
         return
     if not args.character:
@@ -174,7 +176,7 @@ def main(argv=None) -> None:
     raw.save(out / "raw.png")
     pose.save(out / "pose.png")
     build(raw, args.directions, args.size, args.colors, out, args.character, args.model,
-          args.swap_sides)
+          args.swap_sides, args.creature)
     print(f"done: {out / 'sheet.png'}  (seed {seed})")
 
 

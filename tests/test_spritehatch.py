@@ -562,3 +562,28 @@ def test_main_body_drops_a_neighbors_wing_tip_at_the_cell_edge():
     fg[30:33, 30:33] = True             # a loose part inside the cell
     out = main_body(fg)
     assert out[20, 20] and not out[15, 1] and out[31, 31]
+
+
+def test_creature_motions_stay_inside_their_frames():
+    from spritehatch import creature
+
+    a = np.zeros((48, 48, 4), np.uint8)
+    a[2:47, 10:38] = (90, 200, 90, 255)             # a blob as tall as the frame
+    still = Image.fromarray(a)
+    for name in creature.MOTIONS:
+        for view in ("down", "left", "right", "up"):
+            for f in creature.render(still, view, name):
+                solid = np.asarray(f)[..., 3] > 0
+                assert solid.any()
+                # nothing cut by the frame edge (the hop and the fall have room)
+                assert not (solid[0].any() or solid[:, 0].any() or solid[:, -1].any())
+
+
+def test_creature_sheet_is_marked_for_animate(tmp_path):
+    import json
+
+    from spritehatch.cli import build
+
+    raw = Image.fromarray(np.concatenate([np.asarray(_figure(80).resize((192, 320)))] * 4, axis=1))
+    build(raw, "4", 48, 8, tmp_path, "slime", creature=True)
+    assert json.loads((tmp_path / "sheet.json").read_text())["creature"] is True
