@@ -7,7 +7,7 @@
 
 ## 규칙
 - 답·커밋 메시지는 한국어, 쉬운 말. 단계마다 원자적 커밋 후 main에 바로 push 허락됨(개인 계정 ymc-crow, 2026-11-02).
-- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 41개 통과).
+- 커밋 전 `.venv/bin/ruff check .` 와 `.venv/bin/python -m pytest -q` (지금 43개 통과).
 
 ## 구조
 - `cli.py` 정지 그림: Z-Image로 768x320 캔버스에 4방향을 한 장에 그림(치비 OpenPose 뼈대) → `pixelate.downscale_sprites`로 48px.
@@ -74,7 +74,7 @@
 7. (일부 해결 2026-11-04) `--pose-strength 0`이면 아기 용이 4방향으로 깔끔하게 나옴(seed 4). 단 옆모습이 반대로 나올 수 있어
    `--swap-sides` 둠(눈 위치로 자동 판정 시험 → 마법사 틀림, 버림). 슬라임은 프롬프트의 '2.5등신·다리' 때문에 사람 몸이 됨 → `--creature`(생물용 프롬프트 `CREATURE_PROMPT` + 뼈대 0 + 좌우 바꾸기)로 해결.
    용·슬라임·늑대·박쥐 seed 4 확인. 늑대는 'four legs'라 해도 두 발로 섬. 날개 넓은 박쥐는 날개 끝이 옆 칸으로 넘어가 `main_body`가 칸 옆 가장자리에 걸린 조각을 버리게 함.
-   동작은 사람 뼈대라 서 있는 생물만 맞음. 예전 메모: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
+   생물 동작(`creature.py`, 2026-11-04): 뼈대 없이 몸 전체를 늘이고·줄이고·뛰고·눕힘. sheet.json `creature: true`면 animate가 이걸 씀. 다시 그리기·마법 없음. 예전 메모: Quaternius CC0 3D 팩 + Blender 렌더 → 깊이/선화 ControlNet(Z-Image Fun Union이 depth/canny 지원) 방향으로 조사만 해 둠.
 
 ## 여러 캐릭터 시험 (기사만 보고 다듬지 말 것)
 개선 후 기사 말고도 아래 캐릭터로 정지 그림 + 동작을 만들어 깨지는 데가 없는지 볼 것

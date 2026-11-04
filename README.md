@@ -176,8 +176,9 @@ Options:
   there). Re-roll the seed.
 - Weapons: `attack` draws its own sword. If the description already gives the
   character one, there are two; leave the weapon out of the description.
-- Creatures: `--creature` draws good stills, but the motions move a
-  human skeleton, so they only suit creatures that stand like one.
+- Creatures (`--creature`) get their own motions without a skeleton: `idle`
+  (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
+  over). No `--redraw` and no `cast` for them.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
