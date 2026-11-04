@@ -183,11 +183,13 @@ ZIMAGE_PROMPT = (
 
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
                                width: int = 768, height: int = 320, seed: int = 0,
-                               steps: int = 8, control_strength: float = 0.8) -> dict:
+                               steps: int = 8, control_strength: float = 0.8,
+                               lora: str | None = None, lora_strength: float = 0.5) -> dict:
     """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
     prompt = ZIMAGE_PROMPT.format(count=len(views), views=", ".join(views), character=character)
     wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
-                                steps=steps, control_strength=control_strength)
+                                steps=steps, control_strength=control_strength,
+                                lora=lora, lora_strength=lora_strength)
     del wf["init"]
     wf["enc"] = {"class_type": "EmptySD3LatentImage",
                  "inputs": {"width": width, "height": height, "batch_size": 1}}

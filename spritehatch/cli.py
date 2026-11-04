@@ -113,6 +113,9 @@ def main(argv=None) -> None:
     ap.add_argument("--server", default="http://127.0.0.1:8188")
     ap.add_argument("--checkpoint", default="sd_xl_base_1.0.safetensors")
     ap.add_argument("--lora", default="pixel-art-xl.safetensors")
+    ap.add_argument("--style-lora", default=None,
+                    help="zimage only: a LoRA in ComfyUI's models/loras (e.g. one trained on 48px sprites)")
+    ap.add_argument("--style-strength", type=float, default=0.5, help="strength of --style-lora")
     ap.add_argument("--controlnet", default="OpenPoseXL2.safetensors")
     ap.add_argument("--from-raw", type=Path,
                     help="skip generation and re-cut an existing raw.png")
@@ -136,7 +139,9 @@ def main(argv=None) -> None:
     views = [VIEW_WORDS[v] for v in spec["draw"]]
     if args.model == "zimage":
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
-                                              height=height, seed=seed, steps=args.steps or 8)
+                                              height=height, seed=seed, steps=args.steps or 8,
+                                              lora=args.style_lora,
+                                              lora_strength=args.style_strength)
     else:
         workflow = turnaround_workflow(
             args.character, name, views, width=width, height=height, seed=seed,

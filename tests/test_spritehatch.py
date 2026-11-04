@@ -325,6 +325,16 @@ def test_zimage_uses_no_lora_unless_asked():
     assert styled["shift"]["inputs"]["model"] == ["lora", 0]
 
 
+def test_zimage_turnaround_passes_style_lora():
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    plain = zimage_turnaround_workflow("knight", "p.png", ["front"])
+    assert "lora" not in plain
+    styled = zimage_turnaround_workflow("knight", "p.png", ["front"], lora="s.safetensors")
+    assert styled["lora"]["inputs"]["strength_model"] == 0.5
+    assert styled["shift"]["inputs"]["model"] == ["lora", 0]
+
+
 def test_comfy_run_keeps_waiting_when_a_poll_times_out(monkeypatch):
     from spritehatch.comfy import ComfyClient
 
