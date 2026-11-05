@@ -681,3 +681,14 @@ def test_boss_rig_keeps_a_thick_arm_on_the_arm():
     img = Image.fromarray(a)
     arm = lambda r: sum((np.asarray(r.parts[n])[..., 3] > 0).sum() for n in ("arm_r", "hand_r"))
     assert arm(Rig(img, pts, "down", 1.6)) > arm(Rig(img, pts, "down"))
+
+
+def test_glow_leaves_bright_green_skin_and_its_shadow_alone():
+    from spritehatch.pixelate import paint_small
+
+    a = np.full((120, 120, 3), (58, 85, 22), np.uint8)     # skin shadow
+    a[:, 58:61] = (147, 204, 54)                            # thin lit skin edge
+    fg = np.ones((120, 120), bool)
+    colors = np.array([(58, 85, 22), (147, 204, 54)], np.uint8)
+    assert (paint_small(a, fg, (20, 20), colors, glow=True)
+            == paint_small(a, fg, (20, 20), colors)).all()

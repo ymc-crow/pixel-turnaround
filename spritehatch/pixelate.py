@@ -275,15 +275,19 @@ def _vote_shrink(q: np.ndarray, fg: np.ndarray, size: tuple[int, int], weight: n
 
 
 def _glow_lines(idx: np.ndarray, alpha: np.ndarray, rgb: np.ndarray, fg: np.ndarray,
-                colors: np.ndarray, low: float = 0.25, high: float = 0.5) -> np.ndarray:
+                colors: np.ndarray, low: float = 0.25, high: float = 0.5,
+                gap: float = 80) -> np.ndarray:
     """Thin glowing lines (lava cracks, magic runes) are 2-3 pixels wide in
     the big drawing, a third of a sprite pixel's block, and fade into several
     shades, so they lose every vote and the boss comes out plain. A sprite
-    pixel whose block is a quarter to half bright, saturated color takes the
+    pixel whose block is a quarter to half bright, nearly pure color takes the
     most common glowing color there. Above half it is a solid area (gold
-    armor) the vote already got right, and its dark seams stay."""
+    armor) the vote already got right, and its dark seams stay. A glow is
+    much brighter than what is around it (lava on dark armor, `gap` in
+    brightness); bright green skin next to its own shadow is not."""
     r = rgb.astype(np.int32)
-    glow = (r @ LUMA > 110) & (r.max(2) - r.min(2) > 120) & fg
+    lum = colors.astype(float) @ LUMA
+    glow = (r @ LUMA > 110) & (r.max(2) - r.min(2) > 180) & fg
     h, w = idx.shape
     ys = np.linspace(0, rgb.shape[0], h + 1).round().astype(int)
     xs = np.linspace(0, rgb.shape[1], w + 1).round().astype(int)
@@ -296,7 +300,9 @@ def _glow_lines(idx: np.ndarray, alpha: np.ndarray, rgb: np.ndarray, fg: np.ndar
         if q is None:
             q = nearest(rgb, colors)
         block = q[ys[j]:max(ys[j + 1], ys[j] + 1), xs[i]:max(xs[i + 1], xs[i] + 1)][m]
-        out[j, i] = np.bincount(block, minlength=len(colors)).argmax()
+        c = np.bincount(block, minlength=len(colors)).argmax()
+        if lum[c] - lum[idx[j, i]] >= gap:
+            out[j, i] = c
     return out
 
 
