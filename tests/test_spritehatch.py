@@ -636,3 +636,20 @@ def test_boss_redraw_prompt_drops_the_chibi_body():
     redraw(frames, pts, still=side, character="demon", view="right", motion="idle",
            client=Spy(), body="boss")
     assert texts and not any("chibi" in t for t in texts)
+
+
+def test_glow_keeps_a_thin_lava_crack_but_not_a_gold_plate():
+    from spritehatch.pixelate import paint_small
+
+    a = np.full((120, 120, 3), (120, 20, 15), np.uint8)    # dark red armor
+    a[:, 58:61] = (250, 170, 20)                            # 3px glowing crack
+    a[:, 90:] = (240, 190, 30)                              # solid gold plate
+    a[:, 104:106] = (40, 20, 10)                            # dark seam in the gold
+    fg = np.ones((120, 120), bool)
+    colors = np.array([(120, 20, 15), (250, 170, 20), (240, 190, 30), (40, 20, 10)], np.uint8)
+    plain = paint_small(a, fg, (20, 20), colors)
+    lit = paint_small(a, fg, (20, 20), colors, glow=True)
+    crack = lit[5:15, 9:11, 0]
+    assert (plain[5:15, 9:11, 0] == 120).all()              # the vote loses it
+    assert (crack > 200).any(axis=1).all()                  # glow brings it back
+    assert (lit[:, 15:] == plain[:, 15:]).all()             # gold and seam untouched

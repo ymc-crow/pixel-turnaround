@@ -274,6 +274,32 @@ def _vote_shrink(q: np.ndarray, fg: np.ndarray, size: tuple[int, int], weight: n
     return idx, alpha
 
 
+def _glow_lines(idx: np.ndarray, alpha: np.ndarray, rgb: np.ndarray, fg: np.ndarray,
+                colors: np.ndarray, low: float = 0.25, high: float = 0.5) -> np.ndarray:
+    """Thin glowing lines (lava cracks, magic runes) are 2-3 pixels wide in
+    the big drawing, a third of a sprite pixel's block, and fade into several
+    shades, so they lose every vote and the boss comes out plain. A sprite
+    pixel whose block is a quarter to half bright, saturated color takes the
+    most common glowing color there. Above half it is a solid area (gold
+    armor) the vote already got right, and its dark seams stay."""
+    r = rgb.astype(np.int32)
+    glow = (r @ LUMA > 110) & (r.max(2) - r.min(2) > 120) & fg
+    h, w = idx.shape
+    ys = np.linspace(0, rgb.shape[0], h + 1).round().astype(int)
+    xs = np.linspace(0, rgb.shape[1], w + 1).round().astype(int)
+    q = None
+    out = idx.copy()
+    for j, i in zip(*np.nonzero(alpha)):
+        m = glow[ys[j]:max(ys[j + 1], ys[j] + 1), xs[i]:max(xs[i + 1], xs[i] + 1)]
+        if not low <= m.mean() < high:
+            continue
+        if q is None:
+            q = nearest(rgb, colors)
+        block = q[ys[j]:max(ys[j + 1], ys[j] + 1), xs[i]:max(xs[i + 1], xs[i] + 1)][m]
+        out[j, i] = np.bincount(block, minlength=len(colors)).argmax()
+    return out
+
+
 def _drop_strays(idx: np.ndarray, alpha: np.ndarray, lum: np.ndarray) -> np.ndarray:
     """A lone pixel lighter than the color all four neighbors share is noise;
     a lone darker one (an eye, a rivet) is kept."""
@@ -353,7 +379,7 @@ def outline(rgba: np.ndarray, color) -> np.ndarray:
 
 def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32,
                       dark_weight: float = 2.0, method: str = "distinct",
-                      smooth: int | None = None) -> list[Image.Image]:
+                      smooth: int | None = None, glow: bool = False) -> list[Image.Image]:
     """Like to_sprites, for models whose fake pixels do not sit on a grid.
 
     Colors are picked once at full size from every view, then each sprite
@@ -379,7 +405,7 @@ def downscale_sprites(cells: list[Image.Image], size: int = 48, colors: int = 32
     sprites = []
     for rgb, fg, (x0, y0) in cut:
         h, w = max(1, round(rgb.shape[0] * scale)), max(1, round(rgb.shape[1] * scale))
-        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight, smooth, shown=shown)
+        small = paint_small(rgb, fg, (w, h), rgb_of, dark_weight, smooth, shown=shown, glow=glow)
         rgba = np.zeros((size, size, 4), np.uint8)
         left, top = (size - w) // 2, size - margin - h
         rgba[top:top + h, left:left + w] = small
@@ -407,17 +433,21 @@ def lift_darks(colors: np.ndarray, floor: float = 40, top: float = 72) -> np.nda
 
 def paint_small(rgb: np.ndarray, fg: np.ndarray, size: tuple[int, int], colors: np.ndarray,
                 dark_weight: float = 2.0, smooth: int = 3,
-                shown: np.ndarray | None = None) -> np.ndarray:
+                shown: np.ndarray | None = None, glow: bool = False) -> np.ndarray:
     """Big drawing -> small RGBA in the given colors: a light median blur
     first (the model's shading is speckled; flat areas read better small),
     then nearest color at full size, a weighted vote per sprite pixel, lone
     light specks removed, speckled shading of one material flattened, and
-    shades used by only a pixel or two merged into a neighbor."""
+    shades used by only a pixel or two merged into a neighbor. glow=True
+    brings back thin glowing lines the vote loses (see _glow_lines)."""
+    sharp = rgb
     rgb = np.asarray(Image.fromarray(rgb).filter(ImageFilter.MedianFilter(smooth))) if smooth else rgb
     lum = colors @ LUMA
     weight = 1 + dark_weight * (1 - lum / 255) ** 2
     idx, alpha = _vote_shrink(nearest(rgb, colors), fg, size, weight)
     idx = _merge_rare(_flatten(_drop_strays(idx, alpha, lum), alpha, colors), alpha, colors)
+    if glow:
+        idx = _glow_lines(idx, alpha, sharp, fg, colors)   # the blur erases thin lines
     out = np.zeros((size[1], size[0], 4), np.uint8)
     out[..., :3] = (colors if shown is None else shown)[idx]
     out[..., 3] = alpha * 255

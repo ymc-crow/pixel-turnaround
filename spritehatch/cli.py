@@ -80,7 +80,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
         snapped = raw.copy()
         snapped.info["grid"] = (1, 0, 1, 0)
         sprites = downscale_sprites(split_cells(raw, count), colors=colors,
-                                    size=size or (BOSS_SIZE if boss else 48))
+                                    size=size or (BOSS_SIZE if boss else 48), glow=boss)
     drawn = dict(zip(spec["draw"], sprites))
     skeletons = {v: _skeleton(v, i, count, raw, snapped, s, body)
                  for i, (v, s) in enumerate(zip(spec["draw"], sprites))}
