@@ -617,3 +617,22 @@ def test_boss_sheet_is_96px_and_marked_for_animate(tmp_path):
     build(raw, "4", 0, 8, tmp_path, "demon", boss=True)
     meta = json.loads((tmp_path / "sheet.json").read_text())
     assert meta["frame"] == 96 and meta["body"] == "boss"
+
+
+def test_boss_redraw_prompt_drops_the_chibi_body():
+    from spritehatch.moves import render
+    from spritehatch.redraw import redraw
+
+    side, side_pts = _stick_figure("right")
+    pts: list = []
+    frames = render(side, side_pts, "right", "idle", keypoints=pts)
+    texts = []
+
+    class Spy(_FakeComfy):
+        def run(self, wf):
+            texts.extend(str(n["inputs"].get("text", "")) for n in wf.values())
+            return super().run(wf)
+
+    redraw(frames, pts, still=side, character="demon", view="right", motion="idle",
+           client=Spy(), body="boss")
+    assert texts and not any("chibi" in t for t in texts)

@@ -143,7 +143,8 @@ def main(argv=None) -> None:
                             view=d, motion=name, client=client,
                             denoise=args.denoise, seed=args.seed, model=args.model,
                             steps=args.steps, lora=args.style_lora,
-                            lora_strength=args.style_strength)
+                            lora_strength=args.style_strength,
+                            body=meta.get("body", "chibi"))
             drawn[d] = [with_effects(f, lay) for f, lay in zip(frames, layers)]
         drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
         rows = [[selout(f) for f in drawn[d]] for d in ORDER]

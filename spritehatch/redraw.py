@@ -59,9 +59,10 @@ def cell_size(frame: int, body: int | None = None) -> int:
 
 PROMPT = (
     "pixel art, sprite sheet, {n} animation frames of the same character {action}, "
-    "{view}, {character}, chibi, big head, full body, identical outfit and colors "
+    "{view}, {character}, {body}, full body, identical outfit and colors "
     "in every frame, plain white background, game sprite, clean pixels"
 )
+BODY_WORDS = {"chibi": "chibi, big head", "boss": "huge menacing boss, about 4 heads tall"}
 ACTION = {"idle": "standing and breathing", "walk": "walking",
           # Sword and magic are drawn on top afterwards; asked for them, the model
           # paints a second sword.
@@ -132,7 +133,7 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
            character: str, view: str, motion: str, client: ComfyClient,
            denoise: float = 0.6, seed: int = 0, model: str = "zimage",
            steps: int | None = None, lora: str | None = None,
-           lora_strength: float = 0.5) -> list[Image.Image]:
+           lora_strength: float = 0.5, body: str = "chibi") -> list[Image.Image]:
     """Paint over all frames of one motion and view, four at a time.
 
     Some frames keep their rig drawing: ones without a skeleton (nothing to
@@ -143,7 +144,8 @@ def redraw(frames: list[Image.Image], keypoints: list, *, still: Image.Image,
     if view == "right":
         denoise = min(denoise, SIDE_DENOISE)
     prompt = PROMPT.format(n=GROUP, action=ACTION.get(motion, motion),
-                           view=VIEW_WORDS[view], character=character)
+                           view=VIEW_WORDS[view], character=character,
+                           body=BODY_WORDS[body])
     style = {"lora": lora, "lora_strength": lora_strength} if lora else {}
     out = []
     for g in range(0, len(frames), GROUP):
