@@ -705,3 +705,15 @@ def test_cast_orb_doubles_for_a_big_body():
         return int((np.asarray(front)[..., 3] > 0).sum())
 
     assert orb_size(144) > 1.6 * orb_size(48)       # a body about 90px tall
+
+
+def test_creature_boss_prompt_has_no_human_body():
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    def text(wf):
+        return " ".join(str(n["inputs"].get("text", "")) for n in wf.values())
+
+    dragon = text(zimage_turnaround_workflow("dragon", "p.png", ["front"], boss=True,
+                                             creature=True))
+    assert "menacing" in dragon
+    assert not any(w in dragon for w in ("heads tall", "shoulders", "legs", "chibi", "Cute"))

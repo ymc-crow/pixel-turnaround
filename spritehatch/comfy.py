@@ -202,13 +202,24 @@ BOSS_PROMPT = (
 )
 
 
+# A big creature boss (dragon, giant beast): menacing like BOSS_PROMPT, but no
+# human body words, or a dragon stands up like a man.
+CREATURE_BOSS_PROMPT = (
+    "monster boss turnaround sprite sheet, the same giant creature shown {count} times in a "
+    "row: {views}. {character}. Huge, fierce and menacing, massive body, full body, glowing "
+    "eyes. Clean black outlines, bold colors, cel shading with bright highlights, intricate "
+    "details. Identical colors in every view, plain white background, game sprite."
+)
+
+
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
                                width: int = 768, height: int = 320, seed: int = 0,
                                steps: int = 8, control_strength: float = 0.8,
                                lora: str | None = None, lora_strength: float = 0.5,
                                creature: bool = False, boss: bool = False) -> dict:
     """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
-    template = BOSS_PROMPT if boss else CREATURE_PROMPT if creature else ZIMAGE_PROMPT
+    template = {(True, True): CREATURE_BOSS_PROMPT, (False, True): BOSS_PROMPT,
+                (True, False): CREATURE_PROMPT, (False, False): ZIMAGE_PROMPT}[creature, boss]
     prompt = template.format(count=len(views), views=", ".join(views), character=character)
     wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
                                 steps=steps, control_strength=control_strength,
