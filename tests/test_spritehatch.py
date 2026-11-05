@@ -665,3 +665,19 @@ def test_glow_keeps_a_thin_lava_crack_but_not_a_gold_plate():
     assert (plain[5:15, 9:11, 0] == 120).all()              # the vote loses it
     assert (crack > 200).any(axis=1).all()                  # glow brings it back
     assert (lit[:, 15:] == plain[:, 15:]).all()             # gold and seam untouched
+
+
+def test_boss_rig_keeps_a_thick_arm_on_the_arm():
+    from spritehatch.rig import Rig
+
+    side, pts = _stick_figure("down")
+    a = np.asarray(side).copy()
+    # thicken the right arm well past chibi thickness
+    p, q = np.array(pts[2]), np.array(pts[4])
+    ys, xs = np.mgrid[:a.shape[0], :a.shape[1]]
+    t = np.clip(((xs - p[0]) * (q - p)[0] + (ys - p[1]) * (q - p)[1]) / ((q - p) ** 2).sum(), 0, 1)
+    near = np.hypot(xs - p[0] - t * (q - p)[0], ys - p[1] - t * (q - p)[1]) < 0.14 * a.shape[0]
+    a[near & (a[..., 3] == 0)] = (200, 60, 40, 255)
+    img = Image.fromarray(a)
+    arm = lambda r: sum((np.asarray(r.parts[n])[..., 3] > 0).sum() for n in ("arm_r", "hand_r"))
+    assert arm(Rig(img, pts, "down", 1.6)) > arm(Rig(img, pts, "down"))

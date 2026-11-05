@@ -24,7 +24,7 @@ import math
 from PIL import Image, ImageDraw, ImageOps
 
 from . import effects as fx
-from .rig import Rig
+from .rig import LIMB, Rig
 
 FORWARD = {"right": (1, 0), "down": (0, 1), "up": (0, -1)}
 # Blade angle relative to the forearm, so a hanging arm holds it pointing ahead.
@@ -36,12 +36,12 @@ def canvas_size(frame: int) -> int:
     return -(-int(frame * 1.5) // 8) * 8
 
 
-def make_rig(still: Image.Image, skeleton, view: str, size: int) -> Rig:
+def make_rig(still: Image.Image, skeleton, view: str, size: int, body: str = "chibi") -> Rig:
     dx, dy = (size - still.width) // 2, (size - still.height) // 2
     canvas = Image.new("RGBA", (size, size))
     canvas.alpha_composite(still.convert("RGBA"), (dx, dy))
     moved = [None if p is None else [p[0] + dx, p[1] + dy] for p in skeleton]
-    return Rig(canvas, moved, view)
+    return Rig(canvas, moved, view, LIMB[body])
 
 
 def _side(view: str) -> bool:
@@ -275,7 +275,8 @@ def with_effects(body: Image.Image, layers: tuple) -> Image.Image:
 
 
 def render(still: Image.Image, skeleton, direction: str, motion: str,
-           keypoints: list | None = None, effects: list | None = None) -> list[Image.Image]:
+           keypoints: list | None = None, effects: list | None = None,
+           body: str = "chibi") -> list[Image.Image]:
     """All frames of one motion for one direction (left is a mirrored right).
 
     Pass a list as `keypoints` to get, per frame, the 18 posed OpenPose points
@@ -290,7 +291,7 @@ def render(still: Image.Image, skeleton, direction: str, motion: str,
     view = "right" if direction == "left" else direction
     make_poses, _, big = MOTIONS[motion]
     size = canvas_size(still.width) if big else still.width
-    rig = make_rig(still, skeleton, view, size)
+    rig = make_rig(still, skeleton, view, size, body)
     state: dict = {}
     frames = []
     for i, pose in enumerate(make_poses(view)):

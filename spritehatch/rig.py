@@ -33,6 +33,9 @@ CORE = ("hips", "torso", "head")
 # clothes (a cape, a wide skirt) and stay on the body instead of swinging
 # with the limb. None: every pixel goes to its nearest bone.
 LIMB_REACH: float | None = 1.5
+# Arm and leg thickness per body type: a boss has massive arms, and with chibi
+# thickness most of each arm stays on the torso while the bone swings away.
+LIMB = {"chibi": 1.0, "boss": 1.6}
 # The pelvis is a band across both hip joints, not a single point.
 SEGMENT = {"hips": (8, 11)}
 
@@ -85,10 +88,12 @@ def _fill(tex: np.ndarray, holes: np.ndarray, steps: int = 12) -> None:
 
 
 class Rig:
-    def __init__(self, sprite: Image.Image, skeleton, view: str):
+    def __init__(self, sprite: Image.Image, skeleton, view: str, limb: float = 1.0):
         """sprite: RGBA image; skeleton: 18 [x, y] points (or None) on it.
 
         view is the drawn view: right, down or up (left = mirrored right).
+        limb scales how thick arms and legs are (a boss's are much thicker
+        than a chibi's, see LIMB).
         """
         self.view = view
         self.size = sprite.size
@@ -105,6 +110,7 @@ class Rig:
         above_neck = pix[:, 1] < self.pts[1][1]
         for name, _, s, e, r in BONES:
             s, e = SEGMENT.get(name, (s, e))
+            r = r if name in CORE else r * limb
             d = _seg_dist(pix, self.pts[s], self.pts[e]) / (r * self.height)
             if name == "head":
                 d = np.where(above_neck, 0.0, np.inf)

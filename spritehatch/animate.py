@@ -103,6 +103,8 @@ def main(argv=None) -> None:
 
     src = args.sheet_dir
     meta = json.loads((src / "sheet.json").read_text())
+    body = meta.get("body", "chibi")
+
     if meta.get("order") != ORDER:
         ap.error("only 4-direction sheets are supported")
     if "skeleton" not in meta:
@@ -128,13 +130,14 @@ def main(argv=None) -> None:
         for d in ("down", "right", "up"):
             pts: list = []
             if not client:
-                drawn[d] = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts)
+                drawn[d] = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts,
+                                  body=body)
                 continue
             # The model paints the body only; sword and magic go back on top
             # afterwards, crisp, and out of the way of the face it keeps.
             layers: list = []
             frames = render(stills[d], meta["skeleton"][d], d, name, keypoints=pts,
-                            effects=layers)
+                            effects=layers, body=body)
             # One 2x2 grid holds the whole motion, so all frames get painted
             # together and stay the same character (two grids drift apart).
             last = name in ONE_SHOT
@@ -144,7 +147,7 @@ def main(argv=None) -> None:
                             denoise=args.denoise, seed=args.seed, model=args.model,
                             steps=args.steps, lora=args.style_lora,
                             lora_strength=args.style_strength,
-                            body=meta.get("body", "chibi"))
+                            body=body)
             drawn[d] = [with_effects(f, lay) for f, lay in zip(frames, layers)]
         drawn["left"] = [ImageOps.mirror(f) for f in drawn["right"]]
         rows = [[selout(f) for f in drawn[d]] for d in ORDER]
