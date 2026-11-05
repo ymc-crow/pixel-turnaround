@@ -211,6 +211,11 @@ def _angle(a, b) -> float:
     return math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
 
 
+def _fx_scale(rig: Rig) -> int:
+    """Swords and orbs are made for a 48px body; a 96px boss gets them doubled."""
+    return max(1, round(rig.height / 45))
+
+
 def _sword_layer(rig: Rig, world: dict, view: str, state: dict, pose: dict) -> Image.Image:
     layer = Image.new("RGBA", rig.size)
     draw = ImageDraw.Draw(layer)
@@ -227,8 +232,7 @@ def _sword_layer(rig: Rig, world: dict, view: str, state: dict, pose: dict) -> I
         prev = state["tip"]
         turn = (tip_deg - prev + 180) % 360 - 180
         fx.trail(draw, shoulder, tip_deg - turn, tip_deg, reach * 0.7, reach + 1)
-    # The hand-pixeled sword is made for a 48px body; a 96px boss gets it doubled.
-    fx.sword(layer, hand, deg, length, scale=max(1, round(rig.height / 45)))
+    fx.sword(layer, hand, deg, length, scale=_fx_scale(rig))
     state["tip"] = tip_deg
     return layer
 
@@ -240,16 +244,17 @@ def _magic(rig: Rig, world: dict, view: str, pose: dict, i: int):
         foot = (rig.cx, rig.floor + 1)
         fx.magic_ring(ImageDraw.Draw(back), foot, rig.height * 0.7, i, pose["ring"])
     if "orb" in pose:
-        radius, travel = pose["orb"]
+        k = _fx_scale(rig)
+        radius, travel = (v * k for v in pose["orb"])
         hands = (rig.point(world, "hand_r", "wrist_r") + rig.point(world, "hand_l", "wrist_l")) / 2
         fxd, fyd = FORWARD[view]
-        center = (hands[0] + fxd * (3 + travel), hands[1] + fyd * travel - radius)
+        center = (hands[0] + fxd * (3 * k + travel), hands[1] + fyd * travel - radius)
         d = ImageDraw.Draw(back if view == "up" else front)
         if travel:
             d.line([(center[0] - fxd * travel, center[1] - fyd * travel), center],
-                   fill=fx.MAGIC[2], width=2)
+                   fill=fx.MAGIC[2], width=2 * k)
         fx.orb(d, center, radius)
-        fx.sparkles(d, center, radius + 4, seed=i)
+        fx.sparkles(d, center, radius + 4 * k, seed=i)
     return back, front
 
 

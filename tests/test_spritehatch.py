@@ -692,3 +692,16 @@ def test_glow_leaves_bright_green_skin_and_its_shadow_alone():
     colors = np.array([(58, 85, 22), (147, 204, 54)], np.uint8)
     assert (paint_small(a, fg, (20, 20), colors, glow=True)
             == paint_small(a, fg, (20, 20), colors)).all()
+
+
+def test_cast_orb_doubles_for_a_big_body():
+    from spritehatch.moves import render
+
+    def orb_size(size):
+        side, pts = _stick_figure("down", size)
+        layers: list = []
+        render(side, pts, "down", "cast", effects=layers)
+        _, front = layers[2]
+        return int((np.asarray(front)[..., 3] > 0).sum())
+
+    assert orb_size(144) > 1.6 * orb_size(48)       # a body about 90px tall
