@@ -54,6 +54,34 @@ spritehatch-animate out/slime
 | ![slime](examples/creatures/slime.gif) | ![bat](examples/creatures/bat.gif) | ![dragon](examples/creatures/dragon.gif) |
 | `cute little green slime monster with big eyes` | `cute little purple bat with big ears` | `cute little baby red dragon with small wings, four legs` |
 
+## Bosses
+
+`--boss` makes a 96px boss: a big, menacing body about 4 heads tall (a smaller
+head and wider stance in the skeleton, no chibi words in the prompt) on a canvas
+twice the size (1536x640, about 5 minutes on an M1 Pro).
+
+```bash
+spritehatch --boss "fire demon lord, dark red armor plates, flaming head, glowing orange cracks" -o out/fire --seed 1
+spritehatch-animate out/fire
+```
+
+| seed | boss |
+| --- | --- |
+| 1 | ![fire](examples/bosses/fire.png) `fire demon lord, dark red armor plates, flaming head, glowing orange cracks` |
+| 2 | ![skeleton](examples/bosses/skeleton.png) `skeleton king, white bones, golden crown, tattered purple royal cape` |
+| 3 | ![ogre](examples/bosses/ogre.png) `swamp ogre, bright green skin, big belly, brown loincloth, wooden club` |
+| 4 | ![golem](examples/bosses/golem.png) `ice golem made of blue crystal, glowing cyan runes` |
+
+Thin glowing lines (lava cracks, runes) are only a third of a sprite pixel wide
+in the drawing and lose every vote when shrunk, so for bosses a sprite pixel
+whose block is a quarter to half nearly pure, much brighter color keeps that
+glow. The rig treats a boss's arms and legs as thicker and its sword is drawn
+at twice the size.
+
+![fire boss motions](examples/bosses/fire.gif)
+
+(walk painted over with `--redraw`, the rest straight from the rig)
+
 ## Motions
 
 ```bash
@@ -167,8 +195,8 @@ Options:
 - `-d 4` (default): `down, left, right, up`
 - `-d 8` (**experimental**): adds diagonals. SDXL often turns three-quarter views
   into plain side views, so expect to try a few seeds.
-- `--size 48`: frame size. Default `0` means 48 (with `--model sdxl`: the
-  model's own pixel size).
+- `--size 48`: frame size. Default `0` means 48 (96 with `--boss`; with
+  `--model sdxl`: the model's own pixel size).
 - `--colors 32`: shared palette size.
 - `--model sdxl`: the older SDXL path (bigger canvas, grid snapping).
 - `--seed N`: repeat a result.
@@ -177,6 +205,7 @@ Options:
 - `--creature`: a creature, not a person (`spritehatch --creature "cute little
   purple bat with big ears"`). Drops the chibi body words from the prompt, turns
   the skeleton off and swaps the profiles the model draws backwards.
+- `--boss`: a 96px boss (see [Bosses](#bosses)). `--size` still overrides the size.
 - `--pose-strength 0.8`: how closely the chibi skeleton is followed (`0` = off).
 - `--swap-sides`: swap `left` and `right` when the profiles come out facing
   backwards (happens with `--pose-strength 0`).
@@ -194,6 +223,8 @@ Options:
 - Creatures (`--creature`) get their own motions without a skeleton: `idle`
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
+- Bosses with huge shoulder plates: when the arms go up (`cast`), the plates
+  stay on the torso and look ragged.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
