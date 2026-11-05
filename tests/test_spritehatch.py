@@ -717,3 +717,16 @@ def test_creature_boss_prompt_has_no_human_body():
                                              creature=True))
     assert "menacing" in dragon
     assert not any(w in dragon for w in ("heads tall", "shoulders", "legs", "chibi", "Cute"))
+
+
+def test_creature_hop_grows_with_the_frame():
+    from spritehatch import creature
+
+    def hop(size):
+        a = np.zeros((size, size, 4), np.uint8)
+        a[size // 3:size - 1, size // 4:3 * size // 4] = (90, 200, 90, 255)
+        frames = creature.render(Image.fromarray(a), "down", "walk")
+        bottoms = [np.nonzero(np.asarray(f)[..., 3].any(1))[0].max() for f in frames]
+        return max(bottoms) - min(bottoms)
+
+    assert hop(96) >= 2 * hop(48) - 1

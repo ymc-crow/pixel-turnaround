@@ -41,13 +41,14 @@ def idle(still: Image.Image, view: str) -> list[Image.Image]:
 def walk(still: Image.Image, view: str) -> list[Image.Image]:
     s = canvas_size(still.width)          # room to hop
     fx_, fy = FORWARD[view]
+    k = still.width / 48                  # hop sizes are for a 48px frame
     hop = [  # (sx, sy, forward, up)
         (1.08, 0.9, 0, 0),
         (0.94, 1.08, 1, 3),
         (1.0, 1.0, 2, 5),
         (0.96, 1.05, 1, 2),
     ]
-    return [_place(still, s, sx, sy, fx_ * f, fy * f - up) for sx, sy, f, up in hop]
+    return [_place(still, s, sx, sy, fx_ * f * k, (fy * f - up) * k) for sx, sy, f, up in hop]
 
 
 def attack(still: Image.Image, view: str) -> list[Image.Image]:
@@ -76,7 +77,7 @@ def death(still: Image.Image, view: str) -> list[Image.Image]:
     floor = fx.box(stand)[3]
     x0, _, x1, _ = fx.box(stand)
     pivot = ((x0 + x1) / 2, floor)
-    out = [fx.tint(stand, WHITE, 0.8), _place(still, s, 1.1, 0.85, -back * 2)]
+    out = [fx.tint(stand, WHITE, 0.8), _place(still, s, 1.1, 0.85, -back * 2 * still.width / 48)]
     # Turned on a canvas twice as big, so the body lying flat is not cut off,
     # then put back on the floor in the middle.
     m = s // 2
