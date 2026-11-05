@@ -82,6 +82,17 @@ at twice the size.
 
 (walk painted over with `--redraw`, the rest straight from the rig)
 
+`--creature --boss` makes a creature boss: a huge, menacing monster without the
+human body words, animated whole like the small creatures (the hop and fall
+grow with the frame).
+
+```bash
+spritehatch --creature --boss "giant red dragon, big wings, horns, four legs, long tail" -o out/dragon --seed 4
+spritehatch-animate out/dragon
+```
+
+![dragon boss motions](examples/bosses/dragon.gif)
+
 ## Motions
 
 ```bash
@@ -225,6 +236,9 @@ Options:
   over). No `--redraw` and no `cast` for them.
 - Bosses with huge shoulder plates: when the arms go up (`cast`), the plates
   stay on the torso and look ragged.
+- Creature bosses move as one piece (no flapping wings or walking legs), wide
+  wings can be cut at the edge of their view, and "four legs" still comes out
+  standing on two.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
