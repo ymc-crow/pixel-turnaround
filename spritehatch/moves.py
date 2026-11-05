@@ -227,7 +227,8 @@ def _sword_layer(rig: Rig, world: dict, view: str, state: dict, pose: dict) -> I
         prev = state["tip"]
         turn = (tip_deg - prev + 180) % 360 - 180
         fx.trail(draw, shoulder, tip_deg - turn, tip_deg, reach * 0.7, reach + 1)
-    fx.sword(layer, hand, deg, length)
+    # The hand-pixeled sword is made for a 48px body; a 96px boss gets it doubled.
+    fx.sword(layer, hand, deg, length, scale=max(1, round(rig.height / 45)))
     state["tip"] = tip_deg
     return layer
 

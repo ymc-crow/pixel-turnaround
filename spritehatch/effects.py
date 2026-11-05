@@ -45,13 +45,16 @@ def _sword_sprite(length: float) -> Image.Image:
     return Image.fromarray(a)
 
 
-def sword(layer: Image.Image, hand, deg: float, length: float) -> None:
+def sword(layer: Image.Image, hand, deg: float, length: float, scale: int = 1) -> None:
     """Draw a sword held at `hand`, pointing `deg` degrees (clockwise on
     screen), onto `layer`. The sprite is turned RotSprite-style: drawn
-    straight with lines, a diagonal blade at this size breaks into stripes."""
+    straight with lines, a diagonal blade at this size breaks into stripes.
+    scale=2 draws every sword pixel as 2x2, for a 96px boss."""
     hx, hy = round(hand[0]), round(hand[1])
+    blade = _sword_sprite(length / scale)
+    blade = blade.resize((blade.width * scale, blade.height * scale), Image.NEAREST)
     canvas = Image.new("RGBA", layer.size)
-    canvas.alpha_composite(_sword_sprite(length), (max(0, hx - 4), max(0, hy - 3)))
+    canvas.alpha_composite(blade, (max(0, hx - 4 * scale), max(0, hy - 3 * scale)))
     layer.alpha_composite(rotate(canvas, -deg, (hx + 0.5, hy + 0.5)))
 
 

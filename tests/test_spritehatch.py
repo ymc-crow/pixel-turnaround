@@ -471,6 +471,18 @@ def test_sword_is_drawn_at_the_hand_in_any_direction():
         assert (a[..., :3] == BLADE[:3]).all(2).sum() >= 4     # a visible blade
 
 
+def test_sword_doubles_for_a_big_body_and_stays_at_the_hand():
+    from spritehatch.effects import sword
+
+    small, big = Image.new("RGBA", (96, 96)), Image.new("RGBA", (96, 96))
+    sword(small, (40, 48), 0, 30)
+    sword(big, (40, 48), 0, 30, scale=2)
+    rows = lambda im: np.nonzero(np.asarray(im)[..., 3].any(1))[0]
+    assert len(rows(big)) == 2 * len(rows(small))          # twice as thick
+    assert np.asarray(big)[44:52, 36:44, 3].any()           # still in the hand
+    assert np.asarray(big)[..., 3].any(0).sum() <= 30 + 12  # same length
+
+
 def test_black_clothes_are_lifted_off_the_outline():
     from spritehatch.pixelate import LUMA, lift_darks
 
