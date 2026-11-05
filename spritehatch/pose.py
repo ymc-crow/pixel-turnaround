@@ -99,15 +99,24 @@ _CHIBI_Y = [(0.24, 0.27), (0.39, 0.47), (0.41, 0.49), (0.63, 0.69), (0.76, 0.79)
 _CHIBI_X = 1.25
 
 
-def _chibi(points):
-    old, new = zip(*_CHIBI_Y)
+# Bosses are big and menacing, not cute: a smaller head (about a quarter of
+# the height), a long heavy body and a wide stance.
+_BOSS_Y = [(0.24, 0.19), (0.39, 0.31), (0.41, 0.34), (0.63, 0.61), (0.76, 0.77), (0.89, 0.92)]
+_BOSS_X = 1.45
+
+BODIES = {"chibi": (_CHIBI_Y, _CHIBI_X), "boss": (_BOSS_Y, _BOSS_X)}
+
+
+def _reshape(points, body: str):
+    ys, wide = BODIES[body]
+    old, new = zip(*ys)
     return [None if p is None else
-            (0.5 + (p[0] - 0.5) * _CHIBI_X, float(np.interp(p[1], old, new)))
+            (0.5 + (p[0] - 0.5) * wide, float(np.interp(p[1], old, new)))
             for p in points]
 
 
-def keypoints(view: str):
-    return _chibi(_keypoints(view))
+def keypoints(view: str, body: str = "chibi"):
+    return _reshape(_keypoints(view), body)
 
 
 def _keypoints(view: str):
@@ -151,11 +160,13 @@ def draw_cell(draw: ImageDraw.ImageDraw, points, x0, w, h, stick=6, dot=6):
             draw.ellipse((p[0] - dot, p[1] - dot, p[0] + dot, p[1] + dot), fill=color)
 
 
-def pose_sheet(width: int, height: int, views) -> Image.Image:
-    """Black canvas with one skeleton per view, left to right."""
+def pose_sheet(width: int, height: int, views, body: str = "chibi") -> Image.Image:
+    """Black canvas with one skeleton per view, left to right. Sticks grow with
+    the canvas so the model sees the same skeleton at any size."""
     img = Image.new("RGB", (width, height), "black")
     draw = ImageDraw.Draw(img)
     cell = width / len(views)
+    k = max(1, round(height / 320))
     for i, d in enumerate(views):
-        draw_cell(draw, keypoints(d), i * cell, cell, height)
+        draw_cell(draw, keypoints(d, body), i * cell, cell, height, stick=6 * k, dot=6 * k)
     return img

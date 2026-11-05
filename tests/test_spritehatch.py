@@ -587,3 +587,33 @@ def test_creature_sheet_is_marked_for_animate(tmp_path):
     raw = Image.fromarray(np.concatenate([np.asarray(_figure(80).resize((192, 320)))] * 4, axis=1))
     build(raw, "4", 48, 8, tmp_path, "slime", creature=True)
     assert json.loads((tmp_path / "sheet.json").read_text())["creature"] is True
+
+
+def test_boss_skeleton_has_a_smaller_head_and_wider_body():
+    chibi, boss = keypoints("down"), keypoints("down", "boss")
+    # neck sits higher (smaller head), shoulders spread wider
+    assert boss[1][1] < chibi[1][1]
+    assert abs(boss[2][0] - boss[5][0]) > abs(chibi[2][0] - chibi[5][0])
+    for p in boss:
+        assert p is None or (0 < p[0] < 1 and 0 < p[1] < 1)
+
+
+def test_boss_prompt_drops_the_chibi_body():
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    def text(wf):
+        return " ".join(str(n["inputs"].get("text", "")) for n in wf.values())
+
+    boss = text(zimage_turnaround_workflow("demon", "p.png", ["front"], boss=True))
+    assert "chibi" not in boss.lower() and "menacing" in boss
+
+
+def test_boss_sheet_is_96px_and_marked_for_animate(tmp_path):
+    import json
+
+    from spritehatch.cli import build
+
+    raw = Image.fromarray(np.concatenate([np.asarray(_figure(80).resize((384, 640)))] * 4, axis=1))
+    build(raw, "4", 0, 8, tmp_path, "demon", boss=True)
+    meta = json.loads((tmp_path / "sheet.json").read_text())
+    assert meta["frame"] == 96 and meta["body"] == "boss"

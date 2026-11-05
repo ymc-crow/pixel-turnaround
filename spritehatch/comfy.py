@@ -191,13 +191,25 @@ CREATURE_PROMPT = (
 )
 
 
+# Bosses: the chibi words make a final boss look like a toddler, so they get
+# heroic proportions and a menacing look instead.
+BOSS_PROMPT = (
+    "boss monster turnaround sprite sheet, the same boss shown {count} times in a row: "
+    "{views}. {character}. Huge, hulking and menacing, about 4 heads tall, broad shoulders, "
+    "massive arms, heavy legs in a wide stance, full body, standing, glowing eyes. Clean "
+    "black outlines, bold colors, cel shading with bright highlights, intricate details. "
+    "Identical colors in every view, plain white background, game sprite."
+)
+
+
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
                                width: int = 768, height: int = 320, seed: int = 0,
                                steps: int = 8, control_strength: float = 0.8,
                                lora: str | None = None, lora_strength: float = 0.5,
-                               creature: bool = False) -> dict:
+                               creature: bool = False, boss: bool = False) -> dict:
     """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
-    prompt = (CREATURE_PROMPT if creature else ZIMAGE_PROMPT).format(count=len(views), views=", ".join(views), character=character)
+    template = BOSS_PROMPT if boss else CREATURE_PROMPT if creature else ZIMAGE_PROMPT
+    prompt = template.format(count=len(views), views=", ".join(views), character=character)
     wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
                                 steps=steps, control_strength=control_strength,
                                 lora=lora, lora_strength=lora_strength)

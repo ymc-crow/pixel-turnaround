@@ -27,17 +27,20 @@ from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet
 # runs about 3x faster).
 CANVAS = {"sdxl": {"4": (1536, 640), "8": (1600, 640)},
           "zimage": {"4": (768, 320), "8": (800, 320)}}
+# A 96px boss holds four times the pixels of a 48px hero, so it gets a canvas
+# twice as wide and tall.
+BOSS_SIZE, BOSS_CANVAS = 96, {"4": (1536, 640), "8": (1600, 640)}
 
 
 def _skeleton(view: str, index: int, count: int, raw: Image.Image,
-              snapped: Image.Image, sprite: Image.Image):
+              snapped: Image.Image, sprite: Image.Image, body: str = "chibi"):
     """Where the pose skeleton the model followed ends up on the final sprite."""
     px, ox, py, oy = snapped.info["grid"]
     scale, x0, y0, left, top = sprite.info["place"]
     cell_w = raw.width / count
     cell_x = round(index * snapped.width / count)
     points = []
-    for p in keypoints(view):
+    for p in keypoints(view, body):
         if p is None:
             points.append(None)
             continue
@@ -65,7 +68,8 @@ def _area(sprite: Image.Image) -> int:
 
 def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
           character: str | None = None, model: str = "zimage",
-          swap_sides: bool = False, creature: bool = False) -> None:
+          swap_sides: bool = False, creature: bool = False, boss: bool = False) -> None:
+    body = "boss" if boss else "chibi"
     spec = MODES[mode]
     count = len(spec["draw"])
     if model == "sdxl":
@@ -75,9 +79,10 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
     else:
         snapped = raw.copy()
         snapped.info["grid"] = (1, 0, 1, 0)
-        sprites = downscale_sprites(split_cells(raw, count), size=size or 48, colors=colors)
+        sprites = downscale_sprites(split_cells(raw, count), colors=colors,
+                                    size=size or (BOSS_SIZE if boss else 48))
     drawn = dict(zip(spec["draw"], sprites))
-    skeletons = {v: _skeleton(v, i, count, raw, snapped, s)
+    skeletons = {v: _skeleton(v, i, count, raw, snapped, s, body)
                  for i, (v, s) in enumerate(zip(spec["draw"], sprites))}
     # Mirrors win over anything drawn for the same view.
     for view, source in _pick_sides(spec["mirror"], drawn).items():
@@ -103,6 +108,8 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
             "skeleton": {v: skeletons[v] for v in spec["order"]}}
     if creature:
         meta["creature"] = True             # spritehatch-animate hops it instead
+    if boss:
+        meta["body"] = "boss"               # the redraw prompt drops the chibi words
     (out / "sheet.json").write_text(json.dumps(meta, indent=2))
 
 
@@ -130,6 +137,9 @@ def main(argv=None) -> None:
     ap.add_argument("--creature", action="store_true",
                     help="zimage: a creature, not a person (prompt without chibi body words, "
                          "--pose-strength 0, --swap-sides)")
+    ap.add_argument("--boss", action="store_true",
+                    help="zimage: a big boss (96px, menacing, about 4 heads tall) on a canvas "
+                         "twice the size")
     ap.add_argument("--swap-sides", action="store_true",
                     help="swap the left and right views (when they come out facing backwards)")
     ap.add_argument("--controlnet", default="OpenPoseXL2.safetensors")
@@ -144,24 +154,26 @@ def main(argv=None) -> None:
 
     if args.from_raw:
         build(Image.open(args.from_raw), args.directions, args.size, args.colors, out,
-              args.character, args.model, args.swap_sides, args.creature)
+              args.character, args.model, args.swap_sides, args.creature, args.boss)
         print(f"done: {out / 'sheet.png'}")
         return
     if not args.character:
         ap.error("describe a character, or pass --from-raw")
 
     spec = MODES[args.directions]
-    width, height = CANVAS[args.model][args.directions]
+    if args.boss and args.model != "zimage":
+        ap.error("--boss needs --model zimage")
+    width, height = (BOSS_CANVAS if args.boss else CANVAS[args.model])[args.directions]
     seed = args.seed if args.seed is not None else random.randint(0, 2**32 - 1)
     client = ComfyClient(args.server)
-    pose = pose_sheet(width, height, spec["draw"])
+    pose = pose_sheet(width, height, spec["draw"], "boss" if args.boss else "chibi")
     name = client.upload_image(pose, f"turnaround_pose_{args.directions}.png")
     views = [VIEW_WORDS[v] for v in spec["draw"]]
     if args.model == "zimage":
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
                                               height=height, seed=seed, steps=args.steps or 8,
                                               control_strength=args.pose_strength,
-                                              creature=args.creature,
+                                              creature=args.creature, boss=args.boss,
                                               lora=args.style_lora,
                                               lora_strength=args.style_strength)
     else:
@@ -176,7 +188,7 @@ def main(argv=None) -> None:
     raw.save(out / "raw.png")
     pose.save(out / "pose.png")
     build(raw, args.directions, args.size, args.colors, out, args.character, args.model,
-          args.swap_sides, args.creature)
+          args.swap_sides, args.creature, args.boss)
     print(f"done: {out / 'sheet.png'}  (seed {seed})")
 
 
