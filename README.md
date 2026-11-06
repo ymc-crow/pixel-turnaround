@@ -96,6 +96,21 @@ spritehatch-animate out/dragon
 
 ![dragon boss motions](examples/bosses/dragon.gif)
 
+**Four legs.** When a creature's description says `four legs`, `four-legged`,
+`quadruped` or `on all fours`, words alone are not enough (the model stands
+dragons and wolves up like people), so it is drawn twice:
+
+1. From a gray silhouette of a body on four legs (profiles without head or
+   tail, so the model picks the way it faces), following a rough four-legged
+   depth guide instead of the human skeleton.
+2. The profiles are kept; the front and back are painted again from the
+   silhouette in the creature's own colors.
+
+Profiles that come out facing the wrong way are turned round by where the tail
+hangs. Takes about twice as long.
+
+![wolf](examples/bosses/wolf.png) `giant dire wolf, gray fur, glowing blue eyes, four legs` (seed 4)
+
 ## Motions
 
 ```bash
@@ -238,8 +253,9 @@ Options:
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
 - Creatures move as one piece except for wings and the tail of a profile (no
-  walking legs), wide wings can still touch the edge of their view, and "four legs" still
-  comes out standing on two.
+  walking legs), and wide wings can still touch the edge of their view. Four-legged
+  dragons stand on four legs in profile, but their front view can still look
+  upright (wolves come out right).
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
