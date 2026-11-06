@@ -207,7 +207,8 @@ BOSS_PROMPT = (
 CREATURE_BOSS_PROMPT = (
     "monster boss turnaround sprite sheet, the same giant creature shown {count} times in a "
     "row: {views}. {character}. Huge, fierce and menacing, massive body, full body, glowing "
-    "eyes. Clean black outlines, bold colors, cel shading with bright highlights, intricate "
+    "eyes. Each view small and centered in its own quarter with empty space around it, wings "
+    "and tail fully inside, not touching the next view. Clean black outlines, bold colors, cel shading with bright highlights, intricate "
     "details. Identical colors in every view, plain white background, game sprite."
 )
 
