@@ -730,3 +730,35 @@ def test_creature_hop_grows_with_the_frame():
         return max(bottoms) - min(bottoms)
 
     assert hop(96) >= 2 * hop(48) - 1
+
+
+def _winged(size=96):
+    a = np.zeros((size, size, 4), np.uint8)
+    a[40:94, 38:58] = (200, 40, 40, 255)        # body
+    a[10:40, 42:54] = (200, 40, 40, 255)        # head
+    a[8:44, 6:38] = (150, 20, 20, 255)          # left wing
+    a[8:44, 58:90] = (150, 20, 20, 255)         # right wing
+    return Image.fromarray(a)
+
+
+def test_flap_folds_the_wings_and_leaves_the_body():
+    from spritehatch.creature import flap
+
+    still = _winged()
+    folded = np.asarray(flap(still, "down", -0.3))
+    a = np.asarray(still)
+    assert (folded[:, 38:58] == a[:, 38:58]).all()          # body and head stay
+    tip = lambda img, x: np.nonzero(img[:, x, 3])[0].min()
+    assert tip(folded, 8) > tip(a, 8) and tip(folded, 88) > tip(a, 88)
+
+
+def test_flap_leaves_wingless_creatures_and_the_face_side_alone():
+    from spritehatch.creature import flap
+
+    blob = np.zeros((48, 48, 4), np.uint8)
+    blob[10:47, 8:40] = (90, 200, 90, 255)
+    assert (np.asarray(flap(Image.fromarray(blob), "down", -0.3)) == blob).all()
+    a = np.asarray(_winged())
+    side = np.asarray(flap(_winged(), "right", -0.3))
+    assert (side[:, 58:] == a[:, 58:]).all()                 # the face side stays
+    assert not (side[:, :38] == a[:, :38]).all()            # the back wing moves

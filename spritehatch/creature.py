@@ -6,9 +6,13 @@ idle:   slow squash and stretch
 walk:   a hop: squash, spring up, land
 attack: lean back, lunge forward with a flash, come back
 death:  hit flash, squash, tip over, lie gray
+
+Winged creatures (the top half much wider than the body below) also beat
+their wings in idle and walk: see flap().
 """
 from __future__ import annotations
 
+import numpy as np
 from PIL import Image
 
 from . import effects as fx
@@ -33,9 +37,58 @@ def _place(still: Image.Image, size: int, sx: float = 1.0, sy: float = 1.0,
     return out
 
 
+def _wings(solid: np.ndarray):
+    """(center x, half body width, shoulder row) when the top half spreads much
+    wider than the narrowest row of the lower body (wings), else None."""
+    ys, _ = np.nonzero(solid)
+    top, bottom = ys.min(), ys.max()
+    h = bottom - top + 1
+    rows = [np.nonzero(solid[y])[0] for y in range(top + int(0.6 * h), top + int(0.9 * h))]
+    rows = [r for r in rows if len(r)]
+    if not rows:
+        return None
+    waist = min(rows, key=lambda r: r[-1] - r[0])
+    body = waist[-1] - waist[0] + 1
+    upper = [np.ptp(np.nonzero(solid[y])[0]) + 1 if solid[y].any() else 0
+             for y in range(top, top + h // 2)]
+    if max(upper) < 1.3 * body:
+        return None
+    shoulder = top + max(i for i, w in enumerate(upper) if w >= max(upper) - 1)
+    return (waist[0] + waist[-1] + 1) / 2, body / 2, shoulder
+
+
+def flap(still: Image.Image, view: str, amount: float) -> Image.Image:
+    """Beat the wings: every column outside the body, above the shoulder row,
+    slides down (amount < 0, folding) or up, more toward the wing tips. Whole
+    columns move, so no holes open. Profiles only move the wing behind the
+    back (the head is on the other side)."""
+    a = np.asarray(still.convert("RGBA"))
+    found = _wings(a[..., 3] > 0)
+    if found is None or not amount:
+        return still
+    cx, half, shoulder = found
+    out = a.copy()
+    span = max(cx, a.shape[1] - cx) - half
+    rows = np.arange(shoulder + 1)
+    for x in range(a.shape[1]):
+        side = x + 0.5 - cx
+        if (view == "right" and side > 0) or (view == "left" and side < 0):
+            continue
+        o = abs(side) - half
+        d = round(amount * o * o / span) if o > 0 else 0
+        if d:
+            src = np.clip(rows + d, 0, shoulder)
+            col = a[src, x].copy()
+            col[rows + d < 0] = 0
+            out[:shoulder + 1, x] = col
+    return Image.fromarray(out)
+
+
 def idle(still: Image.Image, view: str) -> list[Image.Image]:
     s = still.width
-    return [_place(still, s, *k) for k in ((1, 1), (1.04, 0.96), (1, 1), (0.97, 1.03))]
+    beat = (0, -0.1, -0.2, -0.1)            # wings sink a little as it breathes
+    return [_place(flap(still, view, b), s, *k)
+            for b, k in zip(beat, ((1, 1), (1.04, 0.96), (1, 1), (0.97, 1.03)))]
 
 
 def walk(still: Image.Image, view: str) -> list[Image.Image]:
@@ -48,7 +101,9 @@ def walk(still: Image.Image, view: str) -> list[Image.Image]:
         (1.0, 1.0, 2, 5),
         (0.96, 1.05, 1, 2),
     ]
-    return [_place(still, s, sx, sy, fx_ * f * k, (fy * f - up) * k) for sx, sy, f, up in hop]
+    beat = (-0.3, 0.1, 0.15, -0.1)          # wings fold on landing, open in the air
+    return [_place(flap(still, view, b), s, sx, sy, fx_ * f * k, (fy * f - up) * k)
+            for b, (sx, sy, f, up) in zip(beat, hop)]
 
 
 def attack(still: Image.Image, view: str) -> list[Image.Image]:
