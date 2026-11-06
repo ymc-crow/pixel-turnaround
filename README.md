@@ -237,7 +237,7 @@ Options:
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
 - Creatures move as one piece except for wings (no walking legs or swinging
-  tail), wide wings can be cut at the edge of their view, and "four legs" still
+  tail), wide wings can still touch the edge of their view, and "four legs" still
   comes out standing on two.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
