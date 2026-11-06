@@ -777,3 +777,18 @@ def test_boss_torso_is_filled_where_the_arms_covered_it():
     chest = lambda r: (r.parts["torso"][30:70, 28:68, 3] > 0).sum()
     assert chest(Rig(Image.fromarray(a), pts, "down", 1.6, 1.85)) > \
         chest(Rig(Image.fromarray(a), pts, "down", 1.6))
+
+
+def test_wag_lifts_the_tail_behind_a_profile_only():
+    from spritehatch.creature import wag
+
+    a = np.zeros((96, 96, 4), np.uint8)
+    a[10:94, 46:70] = (200, 40, 40, 255)        # body, facing right
+    a[60:66, 50:52] = 0                          # (a waist to find)
+    a[80:94, 6:46] = (160, 30, 30, 255)          # tail along the floor, behind
+    still = Image.fromarray(a)
+    lifted = np.asarray(wag(still, "right", 0.3))
+    low = lambda img, x: np.nonzero(img[:, x, 3])[0].max()
+    assert low(lifted, 8) < low(a, 8)                        # the tip rises
+    assert (lifted[:, 46:] == a[:, 46:]).all()               # body untouched
+    assert (np.asarray(wag(still, "down", 0.3)) == a).all()  # front view: no tail
