@@ -792,3 +792,33 @@ def test_wag_lifts_the_tail_behind_a_profile_only():
     assert low(lifted, 8) < low(a, 8)                        # the tip rises
     assert (lifted[:, 46:] == a[:, 46:]).all()               # body untouched
     assert (np.asarray(wag(still, "down", 0.3)) == a).all()  # front view: no tail
+
+
+def test_four_legged_creatures_are_told_to_stand_on_all_fours():
+    from spritehatch.cli import is_quadruped
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    assert is_quadruped("giant red dragon, four legs, long tail")
+    assert is_quadruped("a four-legged beast") and is_quadruped("Quadruped lizard")
+    assert not is_quadruped("cute purple bat") and not is_quadruped(None)
+
+    def text(wf):
+        return " ".join(str(n["inputs"].get("text", "")) for n in wf.values())
+
+    wf = zimage_turnaround_workflow("wolf", "p.png", ["front"], creature=True, quadruped=True)
+    assert "all four legs" in text(wf)
+    assert "all four legs" not in text(zimage_turnaround_workflow("bat", "p.png", ["front"],
+                                                                  creature=True))
+
+
+def test_quadruped_guide_draws_a_low_body_in_every_view():
+    from spritehatch.pose import quadruped_sheet
+
+    img = np.asarray(quadruped_sheet(800, 320, ["down", "left", "right", "up"]).convert("L"))
+    for i in range(4):
+        cell = img[:, i * 200:(i + 1) * 200] > 0
+        ys, _ = np.nonzero(cell)
+        assert ys.min() > 0.35 * 320            # nothing up high: not standing
+        assert ys.max() > 0.9 * 320             # feet on the ground
+    side = img[:, 400:600] > 0
+    assert np.nonzero(side)[1].max() > 0.85 * 200   # the right view's head reaches right

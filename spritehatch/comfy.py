@@ -213,15 +213,27 @@ CREATURE_BOSS_PROMPT = (
 )
 
 
+# Told only "four legs", the model still stands a dragon or wolf up like a
+# person; it needs the pose spelled out.
+QUADRUPED_WORDS = (
+    " Quadruped: it stands on all four legs like a lion or a horse, long horizontal body "
+    "with the belly parallel to the ground, all four feet on the ground, never standing "
+    "upright on its hind legs."
+)
+
+
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
                                width: int = 768, height: int = 320, seed: int = 0,
                                steps: int = 8, control_strength: float = 0.8,
                                lora: str | None = None, lora_strength: float = 0.5,
-                               creature: bool = False, boss: bool = False) -> dict:
+                               creature: bool = False, boss: bool = False,
+                               quadruped: bool = False) -> dict:
     """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
     template = {(True, True): CREATURE_BOSS_PROMPT, (False, True): BOSS_PROMPT,
                 (True, False): CREATURE_PROMPT, (False, False): ZIMAGE_PROMPT}[creature, boss]
     prompt = template.format(count=len(views), views=", ".join(views), character=character)
+    if quadruped:
+        prompt += QUADRUPED_WORDS
     wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
                                 steps=steps, control_strength=control_strength,
                                 lora=lora, lora_strength=lora_strength)

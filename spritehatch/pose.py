@@ -170,3 +170,76 @@ def pose_sheet(width: int, height: int, views, body: str = "chibi") -> Image.Ima
     for i, d in enumerate(views):
         draw_cell(draw, keypoints(d, body), i * cell, cell, height, stick=6 * k, dot=6 * k)
     return img
+
+
+# Four-legged creatures: the human skeleton stands them up, and words alone
+# ("four legs") do too, so the model gets a rough depth map of a quadruped
+# instead (nearer is brighter): a long low body on four legs, head and tail.
+# Shapes are (kind, brightness, coords 0..1 inside one cell); a side view
+# faces right.
+_QUAD_SIDE = [
+    ("line", 90, [(0.30, 0.66), (0.14, 0.72), (0.08, 0.86)], 0.035),   # tail
+    ("rect", 110, (0.33, 0.68, 0.39, 0.92)),                           # far hind leg
+    ("rect", 110, (0.63, 0.68, 0.69, 0.92)),                           # far front leg
+    ("ellipse", 200, (0.24, 0.56, 0.78, 0.76)),                        # body
+    ("line", 210, [(0.70, 0.62), (0.78, 0.50)], 0.06),                 # neck
+    ("ellipse", 230, (0.70, 0.42, 0.90, 0.54)),                        # head
+    ("rect", 230, (0.28, 0.68, 0.35, 0.93)),                           # near hind leg
+    ("rect", 230, (0.58, 0.68, 0.65, 0.93)),                           # near front leg
+]
+_QUAD_FRONT = [
+    ("ellipse", 120, (0.22, 0.56, 0.78, 0.78)),                        # body behind, wide
+    ("rect", 110, (0.34, 0.72, 0.42, 0.90)),                           # hind legs, far
+    ("rect", 110, (0.58, 0.72, 0.66, 0.90)),
+    ("ellipse", 190, (0.30, 0.58, 0.70, 0.80)),                        # chest
+    ("rect", 230, (0.30, 0.74, 0.39, 0.93)),                           # front legs, short
+    ("rect", 230, (0.61, 0.74, 0.70, 0.93)),
+    ("ellipse", 250, (0.38, 0.50, 0.62, 0.70)),                        # head, low and near
+]
+_QUAD_BACK = [
+    ("rect", 110, (0.30, 0.70, 0.38, 0.90)),                           # front legs, far
+    ("rect", 110, (0.62, 0.70, 0.70, 0.90)),
+    ("ellipse", 150, (0.40, 0.44, 0.60, 0.58)),                        # head, behind
+    ("ellipse", 200, (0.28, 0.54, 0.72, 0.80)),                        # body
+    ("rect", 230, (0.36, 0.70, 0.44, 0.93)),                           # hind legs
+    ("rect", 230, (0.56, 0.70, 0.64, 0.93)),
+    ("line", 240, [(0.50, 0.70), (0.50, 0.86), (0.58, 0.92)], 0.035),  # tail
+]
+
+
+def _quad_shapes(view: str):
+    if view == "down":
+        return _QUAD_FRONT
+    if view == "up":
+        return _QUAD_BACK
+    if view == "right":
+        return _QUAD_SIDE
+    if view == "left":
+        flip = lambda x: 1 - x
+        out = []
+        for kind, shade, c, *rest in _QUAD_SIDE:
+            if kind == "line":
+                out.append((kind, shade, [(flip(x), y) for x, y in c], *rest))
+            else:
+                x0, y0, x1, y1 = c
+                out.append((kind, shade, (flip(x1), y0, flip(x0), y1)))
+        return out
+    raise ValueError(f"no four-legged guide for view {view}")
+
+
+def quadruped_sheet(width: int, height: int, views) -> Image.Image:
+    """Black canvas with one rough four-legged depth shape per view."""
+    img = Image.new("RGB", (width, height), "black")
+    draw = ImageDraw.Draw(img)
+    cell = width / len(views)
+    for i, view in enumerate(views):
+        at = lambda x, y, i=i: (i * cell + x * cell, y * height)
+        for kind, shade, c, *rest in _quad_shapes(view):
+            color = (shade,) * 3
+            if kind == "line":
+                draw.line([at(x, y) for x, y in c], fill=color,
+                          width=max(1, round(rest[0] * cell)), joint="curve")
+            else:
+                box = [*at(c[0], c[1]), *at(c[2], c[3])]
+                (draw.ellipse if kind == "ellipse" else draw.rectangle)(box, fill=color)
+    return img

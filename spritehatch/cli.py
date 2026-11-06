@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +20,7 @@ from .pixelate import (
     split_cells,
     to_sprites,
 )
-from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet
+from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet, quadruped_sheet
 
 # Canvas per model and mode. SDXL wants about one megapixel. Z-Image gets a
 # quarter of that: its fake pixels keep their size, so a smaller canvas means
@@ -48,6 +49,15 @@ def _skeleton(view: str, index: int, count: int, raw: Image.Image,
         gy = (p[1] * raw.height - oy) / py
         points.append([round((gx - x0) * scale + left, 1), round((gy - y0) * scale + top, 1)])
     return points
+
+
+QUADRUPED_STRENGTH = 1.0
+_FOUR_LEGS = re.compile(r"four[ -]legg?(ed|s)|quadruped|on all fours", re.IGNORECASE)
+
+
+def is_quadruped(character: str | None) -> bool:
+    """A creature described as walking on four legs."""
+    return bool(character and _FOUR_LEGS.search(character))
 
 
 def _pick_sides(mirror: dict, drawn: dict) -> dict:
@@ -146,7 +156,12 @@ def main(argv=None) -> None:
     ap.add_argument("--from-raw", type=Path,
                     help="skip generation and re-cut an existing raw.png")
     args = ap.parse_args(argv)
-    if args.creature:
+    quadruped = args.creature and is_quadruped(args.character)
+    if quadruped:
+        # A four-legged guide replaces the human skeleton (see
+        # pose.quadruped_sheet); profiles follow it, so no swap.
+        args.pose_strength = QUADRUPED_STRENGTH
+    elif args.creature:
         # Drawn freely, the model turns both profiles to face left, so the
         # sides always come out swapped (dragon, slime, wolf).
         args.pose_strength, args.swap_sides = 0.0, True
@@ -166,7 +181,10 @@ def main(argv=None) -> None:
     width, height = (BOSS_CANVAS if args.boss else CANVAS[args.model])[args.directions]
     seed = args.seed if args.seed is not None else random.randint(0, 2**32 - 1)
     client = ComfyClient(args.server)
-    pose = pose_sheet(width, height, spec["draw"], "boss" if args.boss else "chibi")
+    if quadruped:
+        pose = quadruped_sheet(width, height, spec["draw"])
+    else:
+        pose = pose_sheet(width, height, spec["draw"], "boss" if args.boss else "chibi")
     name = client.upload_image(pose, f"turnaround_pose_{args.directions}.png")
     views = [VIEW_WORDS[v] for v in spec["draw"]]
     if args.model == "zimage":
@@ -174,6 +192,7 @@ def main(argv=None) -> None:
                                               height=height, seed=seed, steps=args.steps or 8,
                                               control_strength=args.pose_strength,
                                               creature=args.creature, boss=args.boss,
+                                              quadruped=quadruped,
                                               lora=args.style_lora,
                                               lora_strength=args.style_strength)
     else:
