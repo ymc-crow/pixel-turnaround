@@ -12,6 +12,7 @@ from PIL import Image, ImageOps
 
 from .comfy import ComfyClient, turnaround_workflow, zimage_turnaround_workflow
 from .pixelate import (
+    LUMA,
     background_mask,
     downscale_sprites,
     preview,
@@ -21,7 +22,15 @@ from .pixelate import (
     split_cells,
     to_sprites,
 )
-from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet, quadruped_sheet, quadruped_start
+from .pose import (
+    MODES,
+    START_PARTS,
+    VIEW_WORDS,
+    keypoints,
+    pose_sheet,
+    quadruped_sheet,
+    quadruped_start,
+)
 
 # Canvas per model and mode. SDXL wants about one megapixel. Z-Image gets a
 # quarter of that: its fake pixels keep their size, so a smaller canvas means
@@ -56,6 +65,11 @@ def _skeleton(view: str, index: int, count: int, raw: Image.Image,
 # way to noise) and follow the guide this hard; at 1.0 the guide's straight
 # legs get painted as black sticks.
 QUADRUPED_STRENGTH, QUADRUPED_DENOISE = 0.6, 0.85
+# The first pass gets the profiles down on four legs, but the front and back
+# still stand up. The second pass keeps those profiles and repaints the front
+# and back from the silhouette in the creature's own colors, keeping more of
+# it (at 0.75 from a gray one the dragon turned into a gray goat).
+QUADRUPED_SECOND = 0.75
 _FOUR_LEGS = re.compile(r"four[ -]legg?(ed|s)|quadruped|on all fours", re.IGNORECASE)
 
 
@@ -67,10 +81,11 @@ def is_quadruped(character: str | None) -> bool:
 def _tail_side(cell: Image.Image) -> int:
     """-1 when a four-legged profile's tail is on the left, 1 on the right,
     0 when unclear. The tail hangs low behind the body; on the head side
-    nothing reaches that far out down low (wings, up high, do not count)."""
+    nothing reaches that far out down low (wings, up high, do not count;
+    from 0.62 down a wolf's low head was taken for a tail)."""
     fg = ~background_mask(cell)
     h, w = fg.shape
-    low = fg[int(0.62 * h):int(0.92 * h)]
+    low = fg[int(0.70 * h):int(0.92 * h)]
     left, right = low[:, :int(0.24 * w)].mean(), low[:, int(0.76 * w):].mean()
     return 0 if abs(left - right) < 0.05 else (-1 if left > right else 1)
 
@@ -84,6 +99,30 @@ def face_profiles(cells: list[Image.Image], views: list[str]) -> list[Image.Imag
         wrong = (view == "left" and tail < 0) or (view == "right" and tail > 0)
         out.append(ImageOps.mirror(cell) if wrong else cell)
     return out
+
+
+def refill_ends(raw: Image.Image, guide: Image.Image, views: list[str]) -> Image.Image:
+    """Start picture for the second four-legged pass: the drawn profiles as
+    they are, and the front and back cells replaced by the guide's
+    silhouette in the body color of the profiles."""
+    a = np.asarray(raw.convert("RGB")).copy()
+    g = np.asarray(guide.convert("L").resize(raw.size)).astype(float)
+    cw = a.shape[1] // len(views)
+    cells = [slice(i * cw, (i + 1) * cw) for i in range(len(views))]
+    sides = [a[:, c] for c, v in zip(cells, views) if v in ("left", "right")]
+    body = np.concatenate([s[~background_mask(Image.fromarray(s))] for s in sides])
+    lum = body.astype(float) @ LUMA
+    mid = (lum >= np.percentile(lum, 30)) & (lum <= np.percentile(lum, 80))
+    color = np.median(body[mid] if mid.any() else body, axis=0)    # skip outline and shine
+    for c, v in zip(cells, views):
+        if v in ("left", "right"):
+            continue
+        shade = g[:, c]
+        cell = np.full((*shade.shape, 3), 255.0)
+        solid = shade > 0
+        cell[solid] = color * (1.25 - 0.5 * shade[solid, None] / 255)
+        a[:, c] = np.clip(cell, 0, 255)
+    return Image.fromarray(a)
 
 
 def _pick_sides(mirror: dict, drawn: dict) -> dict:
@@ -216,8 +255,8 @@ def main(argv=None) -> None:
     else:
         pose = pose_sheet(width, height, spec["draw"], "boss" if args.boss else "chibi")
     name = client.upload_image(pose, f"turnaround_pose_{args.directions}.png")
-    start = (client.upload_image(quadruped_start(pose), "turnaround_start.png")
-             if quadruped else None)
+    start = (client.upload_image(quadruped_start(quadruped_sheet(
+        width, height, spec["draw"], START_PARTS)), "turnaround_start.png") if quadruped else None)
     views = [VIEW_WORDS[v] for v in spec["draw"]]
     if args.model == "zimage":
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
@@ -235,6 +274,17 @@ def main(argv=None) -> None:
             controlnet=args.controlnet)
     print(f"generating {len(spec['draw'])} views (seed {seed}), this takes a few minutes...")
     raw = client.run(workflow)[0]
+    if quadruped:
+        out.mkdir(parents=True, exist_ok=True)
+        raw.save(out / "raw_first.png")
+        print("second pass: front and back on four legs...")
+        again = client.upload_image(refill_ends(raw, pose, spec["draw"]), "turnaround_start2.png")
+        workflow = zimage_turnaround_workflow(
+            args.character, name, views, width=width, height=height, seed=seed,
+            steps=args.steps or 8, control_strength=args.pose_strength, creature=True,
+            boss=args.boss, quadruped=True, init_image=again, denoise=QUADRUPED_SECOND,
+            lora=args.style_lora, lora_strength=args.style_strength)
+        raw = client.run(workflow)[0]
 
     out.mkdir(parents=True, exist_ok=True)
     raw.save(out / "raw.png")

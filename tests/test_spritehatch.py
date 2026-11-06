@@ -838,3 +838,18 @@ def test_four_legged_profiles_are_turned_to_face_their_side():
     assert np.array_equal(np.asarray(right), a)
     front = face_profiles([faces_right], ["down"])[0]
     assert np.array_equal(np.asarray(front), a)
+
+
+def test_second_pass_paints_front_and_back_in_the_profile_colors():
+    from spritehatch.cli import refill_ends
+    from spritehatch.pose import quadruped_sheet
+
+    views = ["down", "left", "right", "up"]
+    a = np.full((320, 800, 3), 255, np.uint8)
+    a[200:280, 230:370] = (200, 30, 30)          # red profile in the left cell
+    a[200:280, 430:570] = (200, 30, 30)          # and the right one
+    a[60:300, 40:160] = (30, 30, 200)            # a blue figure standing in front
+    out = np.asarray(refill_ends(Image.fromarray(a), quadruped_sheet(800, 320, views), views))
+    assert (out[:, 200:600] == a[:, 200:600]).all()          # profiles kept
+    front = out[:, :200][(out[:, :200] < 250).any(2)]
+    assert len(front) and (front[:, 0] > front[:, 2]).all()  # reddish silhouette, not blue
