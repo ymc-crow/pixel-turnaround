@@ -762,3 +762,18 @@ def test_flap_leaves_wingless_creatures_and_the_face_side_alone():
     side = np.asarray(flap(_winged(), "right", -0.3))
     assert (side[:, 58:] == a[:, 58:]).all()                 # the face side stays
     assert not (side[:, :38] == a[:, :38]).all()            # the back wing moves
+
+
+def test_boss_torso_is_filled_where_the_arms_covered_it():
+    from spritehatch.rig import Rig
+
+    a = np.zeros((96, 96, 4), np.uint8)
+    a[30:70, 28:68] = (200, 60, 40, 255)        # broad chest, arms painted over it
+    a[8:30, 38:58] = (230, 180, 150, 255)       # head
+    a[70:94, 34:62] = (90, 60, 40, 255)         # legs
+    pts = [[48, 20], [48, 30], [34, 32], [30, 48], [30, 62], [62, 32], [66, 48], [66, 62],
+           [42, 70], [42, 82], [42, 93], [54, 70], [54, 82], [54, 93],
+           [45, 18], [51, 18], [40, 20], [56, 20]]
+    chest = lambda r: (r.parts["torso"][30:70, 28:68, 3] > 0).sum()
+    assert chest(Rig(Image.fromarray(a), pts, "down", 1.6, 1.85)) > \
+        chest(Rig(Image.fromarray(a), pts, "down", 1.6))

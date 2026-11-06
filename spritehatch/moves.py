@@ -24,7 +24,7 @@ import math
 from PIL import Image, ImageDraw, ImageOps
 
 from . import effects as fx
-from .rig import LIMB, Rig
+from .rig import LIMB, TORSO, Rig
 
 FORWARD = {"right": (1, 0), "down": (0, 1), "up": (0, -1)}
 # Blade angle relative to the forearm, so a hanging arm holds it pointing ahead.
@@ -41,7 +41,7 @@ def make_rig(still: Image.Image, skeleton, view: str, size: int, body: str = "ch
     canvas = Image.new("RGBA", (size, size))
     canvas.alpha_composite(still.convert("RGBA"), (dx, dy))
     moved = [None if p is None else [p[0] + dx, p[1] + dy] for p in skeleton]
-    return Rig(canvas, moved, view, LIMB[body])
+    return Rig(canvas, moved, view, LIMB[body], TORSO[body])
 
 
 def _side(view: str) -> bool:
