@@ -222,6 +222,11 @@ QUADRUPED_WORDS = (
 )
 
 
+# "Dragon" pulls the model to an upright dragon even on a four-legged
+# silhouette; a dinosaur body pulls it back down.
+DRAGON_BODY = " Its body is a heavy four-legged dinosaur body like a triceratops."
+
+
 def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str], *,
                                width: int = 768, height: int = 320, seed: int = 0,
                                steps: int = 8, control_strength: float = 0.8,
@@ -238,6 +243,8 @@ def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str]
     prompt = template.format(count=len(views), views=", ".join(views), character=character)
     if quadruped:
         prompt += QUADRUPED_WORDS
+        if "dragon" in character.lower():
+            prompt += DRAGON_BODY
     wf = zimage_redraw_workflow(prompt, init_image or pose_image, pose_image,
                                 denoise=denoise if init_image else 1.0, seed=seed,
                                 steps=steps, control_strength=control_strength,

@@ -68,8 +68,10 @@ QUADRUPED_STRENGTH, QUADRUPED_DENOISE = 0.6, 0.85
 # The first pass gets the profiles down on four legs, but the front and back
 # still stand up. The second pass keeps those profiles and repaints the front
 # and back from the silhouette in the creature's own colors, keeping more of
-# it (at 0.75 from a gray one the dragon turned into a gray goat).
-QUADRUPED_SECOND = 0.75
+# it (at 0.75 from a gray one the dragon turned into a gray goat). At 0.75 a
+# dragon's front still stood; at 0.625 it leans forward on four legs, with
+# less detail on the back.
+QUADRUPED_SECOND = 0.625
 _FOUR_LEGS = re.compile(r"four[ -]legg?(ed|s)|quadruped|on all fours", re.IGNORECASE)
 
 

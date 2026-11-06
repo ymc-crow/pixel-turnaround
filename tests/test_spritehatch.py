@@ -861,3 +861,16 @@ def test_lifting_darks_keeps_a_near_black_gray_not_blue():
     out = lift_darks(np.array([(5, 5, 6), (12, 11, 23), (200, 200, 200)], np.uint8))
     r, _, b = out[1].astype(int)
     assert b - r <= 12 and r > 25          # lighter, still about gray
+
+
+def test_four_legged_dragons_get_a_dinosaur_body():
+    from spritehatch.comfy import zimage_turnaround_workflow
+
+    def text(wf):
+        return " ".join(str(n["inputs"].get("text", "")) for n in wf.values())
+
+    kw = {"creature": True, "quadruped": True}
+    assert "dinosaur" in text(zimage_turnaround_workflow("red Dragon", "p.png", ["front"], **kw))
+    assert "dinosaur" not in text(zimage_turnaround_workflow("wolf", "p.png", ["front"], **kw))
+    assert "dinosaur" not in text(zimage_turnaround_workflow("dragon", "p.png", ["front"],
+                                                             creature=True))
