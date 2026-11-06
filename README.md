@@ -107,7 +107,8 @@ dragons and wolves up like people), so it is drawn twice:
    silhouette in the creature's own colors.
 
 Profiles that come out facing the wrong way are turned round by where the tail
-hangs. Takes about twice as long.
+hangs. A four-legged dragon also gets a heavy dinosaur body in the prompt (the
+word "dragon" alone stands it up). Takes about twice as long.
 
 ![wolf](examples/bosses/wolf.png) `giant dire wolf, gray fur, glowing blue eyes, four legs` (seed 4)
 
@@ -253,9 +254,9 @@ Options:
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
 - Creatures move as one piece except for wings and the tail of a profile (no
-  walking legs), and wide wings can still touch the edge of their view. Four-legged
-  dragons stand on four legs in profile, but their front view can still look
-  upright (wolves come out right).
+  walking legs), and wide wings can still touch the edge of their view. A
+  four-legged dragon's front view is a heavy body on planted front legs that
+  can still read as a stout beast standing up; wolves come out right.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
