@@ -75,8 +75,8 @@ spritehatch-animate out/fire
 Thin glowing lines (lava cracks, runes) are only a third of a sprite pixel wide
 in the drawing and lose every vote when shrunk, so for bosses a sprite pixel
 whose block is a quarter to half nearly pure, much brighter color keeps that
-glow. The rig treats a boss's arms and legs as thicker and its sword is drawn
-at twice the size.
+glow. The rig treats a boss's arms, legs and torso as thicker (so raised arms do
+not tear the chest open) and its sword and magic orb are drawn at twice the size.
 
 ![fire boss motions](examples/bosses/fire.gif)
 
@@ -236,8 +236,6 @@ Options:
 - Creatures (`--creature`) get their own motions without a skeleton: `idle`
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
-- Bosses with huge shoulder plates: when the arms go up (`cast`), the plates
-  stay on the torso and look ragged.
 - Creatures move as one piece except for wings (no walking legs or swinging
   tail), wide wings can be cut at the edge of their view, and "four legs" still
   comes out standing on two.
