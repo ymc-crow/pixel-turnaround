@@ -227,16 +227,24 @@ def zimage_turnaround_workflow(character: str, pose_image: str, views: list[str]
                                steps: int = 8, control_strength: float = 0.8,
                                lora: str | None = None, lora_strength: float = 0.5,
                                creature: bool = False, boss: bool = False,
-                               quadruped: bool = False) -> dict:
-    """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors."""
+                               quadruped: bool = False, init_image: str | None = None,
+                               denoise: float = 1.0) -> dict:
+    """turnaround_workflow on Z-Image-Turbo: cleaner faces, outlines and colors.
+
+    init_image (with denoise < 1) starts from a rough picture instead of
+    noise, so its layout sticks (a four-legged silhouette for quadrupeds)."""
     template = {(True, True): CREATURE_BOSS_PROMPT, (False, True): BOSS_PROMPT,
                 (True, False): CREATURE_PROMPT, (False, False): ZIMAGE_PROMPT}[creature, boss]
     prompt = template.format(count=len(views), views=", ".join(views), character=character)
     if quadruped:
         prompt += QUADRUPED_WORDS
-    wf = zimage_redraw_workflow(prompt, pose_image, pose_image, denoise=1.0, seed=seed,
+    wf = zimage_redraw_workflow(prompt, init_image or pose_image, pose_image,
+                                denoise=denoise if init_image else 1.0, seed=seed,
                                 steps=steps, control_strength=control_strength,
                                 lora=lora, lora_strength=lora_strength)
+    if init_image:
+        wf["save"]["inputs"]["filename_prefix"] = "turnaround_zimage"
+        return wf
     del wf["init"]
     wf["enc"] = {"class_type": "EmptySD3LatentImage",
                  "inputs": {"width": width, "height": height, "batch_size": 1}}

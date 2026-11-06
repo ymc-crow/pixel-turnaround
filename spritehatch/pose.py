@@ -243,3 +243,15 @@ def quadruped_sheet(width: int, height: int, views) -> Image.Image:
                 box = [*at(c[0], c[1]), *at(c[2], c[3])]
                 (draw.ellipse if kind == "ellipse" else draw.rectangle)(box, fill=color)
     return img
+
+
+def quadruped_start(guide: Image.Image, color=(150, 150, 150)) -> Image.Image:
+    """The first picture the model paints over: the guide's silhouette in a
+    flat gray on white (a colored one tints the creature: a red start turned
+    a gray wolf brown). Words and the guide alone still let a dragon
+    stand up; starting from a body already on four legs keeps it down."""
+    g = np.asarray(guide.convert("L")).astype(float)
+    out = np.full((*g.shape, 3), 255.0)
+    solid = g > 0
+    out[solid] = np.array(color, float) * (1.2 - 0.5 * g[solid, None] / 255)
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))

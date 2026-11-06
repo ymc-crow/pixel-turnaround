@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from spritehatch.pixelate import background_mask, downscale_sprites, snap_to_grid, to_sprites
 from spritehatch.pose import MODES, keypoints, pose_sheet
@@ -822,3 +822,19 @@ def test_quadruped_guide_draws_a_low_body_in_every_view():
         assert ys.max() > 0.9 * 320             # feet on the ground
     side = img[:, 400:600] > 0
     assert np.nonzero(side)[1].max() > 0.85 * 200   # the right view's head reaches right
+
+
+def test_four_legged_profiles_are_turned_to_face_their_side():
+    from spritehatch.cli import face_profiles
+
+    a = np.full((200, 160, 3), 255, np.uint8)
+    a[110:150, 40:120] = (90, 90, 90)           # body
+    a[150:184, 50:58] = a[150:184, 104:112] = (90, 90, 90)   # legs
+    a[80:110, 110:140] = (90, 90, 90)           # head, right
+    a[140:180, 4:40] = (90, 90, 90)             # tail, low on the left
+    faces_right = Image.fromarray(a)
+    left, right = face_profiles([faces_right, faces_right], ["left", "right"])
+    assert np.array_equal(np.asarray(left), np.asarray(ImageOps.mirror(faces_right)))
+    assert np.array_equal(np.asarray(right), a)
+    front = face_profiles([faces_right], ["down"])[0]
+    assert np.array_equal(np.asarray(front), a)

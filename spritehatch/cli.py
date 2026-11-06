@@ -12,6 +12,7 @@ from PIL import Image, ImageOps
 
 from .comfy import ComfyClient, turnaround_workflow, zimage_turnaround_workflow
 from .pixelate import (
+    background_mask,
     downscale_sprites,
     preview,
     selout,
@@ -20,7 +21,7 @@ from .pixelate import (
     split_cells,
     to_sprites,
 )
-from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet, quadruped_sheet
+from .pose import MODES, VIEW_WORDS, keypoints, pose_sheet, quadruped_sheet, quadruped_start
 
 # Canvas per model and mode. SDXL wants about one megapixel. Z-Image gets a
 # quarter of that: its fake pixels keep their size, so a smaller canvas means
@@ -51,13 +52,38 @@ def _skeleton(view: str, index: int, count: int, raw: Image.Image,
     return points
 
 
-QUADRUPED_STRENGTH = 1.0
+# Four-legged creatures start from a silhouette (keep QUADRUPED_DENOISE of the
+# way to noise) and follow the guide this hard; at 1.0 the guide's straight
+# legs get painted as black sticks.
+QUADRUPED_STRENGTH, QUADRUPED_DENOISE = 0.6, 0.85
 _FOUR_LEGS = re.compile(r"four[ -]legg?(ed|s)|quadruped|on all fours", re.IGNORECASE)
 
 
 def is_quadruped(character: str | None) -> bool:
     """A creature described as walking on four legs."""
     return bool(character and _FOUR_LEGS.search(character))
+
+
+def _tail_side(cell: Image.Image) -> int:
+    """-1 when a four-legged profile's tail is on the left, 1 on the right,
+    0 when unclear. The tail hangs low behind the body; on the head side
+    nothing reaches that far out down low (wings, up high, do not count)."""
+    fg = ~background_mask(cell)
+    h, w = fg.shape
+    low = fg[int(0.62 * h):int(0.92 * h)]
+    left, right = low[:, :int(0.24 * w)].mean(), low[:, int(0.76 * w):].mean()
+    return 0 if abs(left - right) < 0.05 else (-1 if left > right else 1)
+
+
+def face_profiles(cells: list[Image.Image], views: list[str]) -> list[Image.Image]:
+    """Four-legged profiles come out facing either way: mirror the ones whose
+    tail is on the side their head should be."""
+    out = []
+    for cell, view in zip(cells, views):
+        tail = _tail_side(cell) if view in ("left", "right") else 0
+        wrong = (view == "left" and tail < 0) or (view == "right" and tail > 0)
+        out.append(ImageOps.mirror(cell) if wrong else cell)
+    return out
 
 
 def _pick_sides(mirror: dict, drawn: dict) -> dict:
@@ -89,7 +115,10 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
     else:
         snapped = raw.copy()
         snapped.info["grid"] = (1, 0, 1, 0)
-        sprites = downscale_sprites(split_cells(raw, count), colors=colors,
+        cells = split_cells(raw, count)
+        if creature and is_quadruped(character):
+            cells = face_profiles(cells, spec["draw"])
+        sprites = downscale_sprites(cells, colors=colors,
                                     size=size or (BOSS_SIZE if boss else 48), glow=boss)
     drawn = dict(zip(spec["draw"], sprites))
     skeletons = {v: _skeleton(v, i, count, raw, snapped, s, body)
@@ -159,7 +188,8 @@ def main(argv=None) -> None:
     quadruped = args.creature and is_quadruped(args.character)
     if quadruped:
         # A four-legged guide replaces the human skeleton (see
-        # pose.quadruped_sheet); profiles follow it, so no swap.
+        # pose.quadruped_sheet); profiles drawn facing the wrong way are
+        # turned round by build (see face_profiles).
         args.pose_strength = QUADRUPED_STRENGTH
     elif args.creature:
         # Drawn freely, the model turns both profiles to face left, so the
@@ -186,13 +216,16 @@ def main(argv=None) -> None:
     else:
         pose = pose_sheet(width, height, spec["draw"], "boss" if args.boss else "chibi")
     name = client.upload_image(pose, f"turnaround_pose_{args.directions}.png")
+    start = (client.upload_image(quadruped_start(pose), "turnaround_start.png")
+             if quadruped else None)
     views = [VIEW_WORDS[v] for v in spec["draw"]]
     if args.model == "zimage":
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
                                               height=height, seed=seed, steps=args.steps or 8,
                                               control_strength=args.pose_strength,
                                               creature=args.creature, boss=args.boss,
-                                              quadruped=quadruped,
+                                              quadruped=quadruped, init_image=start,
+                                              denoise=QUADRUPED_DENOISE,
                                               lora=args.style_lora,
                                               lora_strength=args.style_strength)
     else:
