@@ -426,14 +426,15 @@ def lift_darks(colors: np.ndarray, floor: float = 40, top: float = 72) -> np.nda
     body turns into one dark blob. Pixel artists paint black as a dark gray
     with a tint, so the outline still reads. Every color darker than `top`
     except the darkest one (the outline and eyes) is spread over floor..top,
-    keeping its order and hue."""
+    keeping its order. The shift is added, not multiplied: scaling a near-black
+    with a faint blue tint threefold turned a gray wolf's fur blue."""
     lum = colors.astype(float) @ LUMA
     ink = lum.min()
     out = colors.astype(float)
     for i, v in enumerate(lum):
         if ink < v < top:
             new = floor + (v - ink) / (top - ink) * (top - floor)
-            out[i] = out[i] * (new / max(v, 1.0)) if v > 1 else out[i] + new
+            out[i] = out[i] + (new - v)
     return np.clip(out.round(), 0, 255).astype(np.uint8)
 
 

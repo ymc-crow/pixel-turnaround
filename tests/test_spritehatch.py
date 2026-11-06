@@ -853,3 +853,11 @@ def test_second_pass_paints_front_and_back_in_the_profile_colors():
     assert (out[:, 200:600] == a[:, 200:600]).all()          # profiles kept
     front = out[:, :200][(out[:, :200] < 250).any(2)]
     assert len(front) and (front[:, 0] > front[:, 2]).all()  # reddish silhouette, not blue
+
+
+def test_lifting_darks_keeps_a_near_black_gray_not_blue():
+    from spritehatch.pixelate import lift_darks
+
+    out = lift_darks(np.array([(5, 5, 6), (12, 11, 23), (200, 200, 200)], np.uint8))
+    r, _, b = out[1].astype(int)
+    assert b - r <= 12 and r > 25          # lighter, still about gray
