@@ -86,7 +86,8 @@ not tear the chest open) and its sword and magic orb are drawn at twice the size
 human body words, animated whole like the small creatures (the hop and fall
 grow with the frame). Wings beat in `idle` and `walk`: when the top half is much
 wider than the body below, the columns outside the body slide down and up, more
-toward the tips.
+toward the tips. In profiles the tail (what sticks out behind the body below the
+waist) lifts the same way.
 
 ```bash
 spritehatch --creature --boss "giant red dragon, big wings, horns, four legs, long tail" -o out/dragon --seed 4
@@ -236,8 +237,8 @@ Options:
 - Creatures (`--creature`) get their own motions without a skeleton: `idle`
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
-- Creatures move as one piece except for wings (no walking legs or swinging
-  tail), wide wings can still touch the edge of their view, and "four legs" still
+- Creatures move as one piece except for wings and the tail of a profile (no
+  walking legs), wide wings can still touch the edge of their view, and "four legs" still
   comes out standing on two.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
