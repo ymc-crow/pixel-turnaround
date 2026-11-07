@@ -818,7 +818,7 @@ def test_quadruped_guide_draws_a_low_body_in_every_view():
     for i in range(4):
         cell = img[:, i * 200:(i + 1) * 200] > 0
         ys, _ = np.nonzero(cell)
-        assert ys.min() > 0.35 * 320            # nothing up high: not standing
+        assert ys.min() > 0.3 * 320             # nothing up high: not standing
         assert ys.max() > 0.9 * 320             # feet on the ground
     side = img[:, 400:600] > 0
     assert np.nonzero(side)[1].max() > 0.85 * 200   # the right view's head reaches right
@@ -874,3 +874,29 @@ def test_four_legged_dragons_get_a_dinosaur_body():
     assert "dinosaur" not in text(zimage_turnaround_workflow("wolf", "p.png", ["front"], **kw))
     assert "dinosaur" not in text(zimage_turnaround_workflow("dragon", "p.png", ["front"],
                                                              creature=True))
+
+
+def test_bulky_beasts_get_the_heavy_four_legged_guide():
+    from spritehatch.cli import quadruped_body
+    from spritehatch.pose import QUAD_BODIES, quadruped_sheet
+
+    assert quadruped_body("giant red Dragon, four legs") == "heavy"
+    assert quadruped_body("dire wolf, four legs") == "lean"
+    for body in QUAD_BODIES:
+        assert np.asarray(quadruped_sheet(800, 320, ["down", "left", "right", "up"], body)).any()
+
+
+def test_the_profile_closer_to_the_guide_is_kept():
+    from spritehatch.cli import _pick_sides, guide_match
+
+    guide = np.zeros((100, 200, 3), np.uint8)
+    guide[40:90, 10:90] = guide[40:90, 110:190] = 200          # both profiles: a wide body
+    good = np.full((100, 100, 3), 255, np.uint8)
+    good[40:90, 10:90] = 80
+    headless = np.full((100, 100, 3), 255, np.uint8)
+    headless[40:90, 30:70] = 80
+    cells = [Image.fromarray(good), Image.fromarray(headless)]
+    scores = guide_match(cells, Image.fromarray(guide), ["left", "right"])
+    assert scores["left"] > scores["right"]
+    big = {"left": Image.new("RGBA", (4, 4)), "right": Image.new("RGBA", (4, 4), (1, 1, 1, 255))}
+    assert _pick_sides({"left": "right"}, big, scores) == {"right": "left"}

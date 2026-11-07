@@ -24,7 +24,6 @@ from .pixelate import (
 )
 from .pose import (
     MODES,
-    START_PARTS,
     VIEW_WORDS,
     keypoints,
     pose_sheet,
@@ -68,16 +67,26 @@ QUADRUPED_STRENGTH, QUADRUPED_DENOISE = 0.6, 0.85
 # The first pass gets the profiles down on four legs, but the front and back
 # still stand up. The second pass keeps those profiles and repaints the front
 # and back from the silhouette in the creature's own colors, keeping more of
-# it (at 0.75 from a gray one the dragon turned into a gray goat). At 0.75 a
-# dragon's front still stood; at 0.625 it leans forward on four legs, with
-# less detail on the back.
-QUADRUPED_SECOND = 0.625
+# it (at 0.75 from a gray one the dragon turned into a gray goat). With 8
+# steps 0.75 lets a dragon's front stand up and 0.625 keeps it on four legs
+# but flat; 16 steps allow the 0.69 in between: four legs and detail.
+QUADRUPED_SECOND, QUADRUPED_SECOND_STEPS = 0.6875, 16
 _FOUR_LEGS = re.compile(r"four[ -]legg?(ed|s)|quadruped|on all fours", re.IGNORECASE)
 
 
 def is_quadruped(character: str | None) -> bool:
     """A creature described as walking on four legs."""
     return bool(character and _FOUR_LEGS.search(character))
+
+
+_HEAVY = re.compile(r"dragon|bull|ox\b|bear|rhino|dinosaur|behemoth|boar|golem|tortoise|turtle",
+                    re.IGNORECASE)
+
+
+def quadruped_body(character: str | None) -> str:
+    """Which four-legged guide fits: a heavy one (bull) for dragons and other
+    bulky beasts, a lean one (wolf) for the rest."""
+    return "heavy" if character and _HEAVY.search(character) else "lean"
 
 
 def _tail_side(cell: Image.Image) -> int:
@@ -127,13 +136,29 @@ def refill_ends(raw: Image.Image, guide: Image.Image, views: list[str]) -> Image
     return Image.fromarray(a)
 
 
-def _pick_sides(mirror: dict, drawn: dict) -> dict:
+def guide_match(cells: list[Image.Image], guide: Image.Image, views: list[str]) -> dict:
+    """How well each drawn view covers its guide silhouette (overlap / union).
+    A four-legged profile whose head hides behind a wing scores low."""
+    g = np.asarray(guide.convert("L").resize((sum(c.width for c in cells), cells[0].height))) > 0
+    out, x = {}, 0
+    for cell, view in zip(cells, views):
+        fg = ~background_mask(cell)
+        want = g[:, x:x + cell.width]
+        out[view] = (fg & want).sum() / max((fg | want).sum(), 1)
+        x += cell.width
+    return out
+
+
+def _pick_sides(mirror: dict, drawn: dict, scores: dict | None = None) -> dict:
     """Which view of each mirrored pair to keep. When the model drew both, the
     one with more drawn pixels wins: it is usually the one still holding the
-    weapon or staff the other forgot."""
+    weapon or staff the other forgot. With `scores` (four-legged creatures:
+    guide_match), the better match wins instead."""
     out = {}
     for view, source in mirror.items():
-        if view in drawn and _area(drawn[view]) > _area(drawn[source]):
+        better = ((scores[view] > scores[source]) if scores else
+                  view in drawn and _area(drawn[view]) > _area(drawn[source]))
+        if view in drawn and better:
             view, source = source, view
         out[view] = source
     return out
@@ -149,6 +174,7 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
     body = "boss" if boss else "chibi"
     spec = MODES[mode]
     count = len(spec["draw"])
+    scores = None
     if model == "sdxl":
         # The SDXL pixel LoRA draws even blocks, so they can be read off a grid.
         snapped = snap_to_grid(raw)
@@ -159,13 +185,15 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
         cells = split_cells(raw, count)
         if creature and is_quadruped(character):
             cells = face_profiles(cells, spec["draw"])
+            scores = guide_match(cells, quadruped_sheet(raw.width, raw.height, spec["draw"],
+                                                        quadruped_body(character)), spec["draw"])
         sprites = downscale_sprites(cells, colors=colors,
                                     size=size or (BOSS_SIZE if boss else 48), glow=boss)
     drawn = dict(zip(spec["draw"], sprites))
     skeletons = {v: _skeleton(v, i, count, raw, snapped, s, body)
                  for i, (v, s) in enumerate(zip(spec["draw"], sprites))}
     # Mirrors win over anything drawn for the same view.
-    for view, source in _pick_sides(spec["mirror"], drawn).items():
+    for view, source in _pick_sides(spec["mirror"], drawn, scores).items():
         drawn[view] = ImageOps.mirror(drawn[source])
         w = drawn[source].width
         skeletons[view] = [None if p is None else [round(w - p[0], 1), p[1]]
@@ -253,12 +281,12 @@ def main(argv=None) -> None:
     seed = args.seed if args.seed is not None else random.randint(0, 2**32 - 1)
     client = ComfyClient(args.server)
     if quadruped:
-        pose = quadruped_sheet(width, height, spec["draw"])
+        pose = quadruped_sheet(width, height, spec["draw"], quadruped_body(args.character))
     else:
         pose = pose_sheet(width, height, spec["draw"], "boss" if args.boss else "chibi")
     name = client.upload_image(pose, f"turnaround_pose_{args.directions}.png")
-    start = (client.upload_image(quadruped_start(quadruped_sheet(
-        width, height, spec["draw"], START_PARTS)), "turnaround_start.png") if quadruped else None)
+    start = (client.upload_image(quadruped_start(pose), "turnaround_start.png")
+             if quadruped else None)
     views = [VIEW_WORDS[v] for v in spec["draw"]]
     if args.model == "zimage":
         workflow = zimage_turnaround_workflow(args.character, name, views, width=width,
@@ -283,7 +311,7 @@ def main(argv=None) -> None:
         again = client.upload_image(refill_ends(raw, pose, spec["draw"]), "turnaround_start2.png")
         workflow = zimage_turnaround_workflow(
             args.character, name, views, width=width, height=height, seed=seed,
-            steps=args.steps or 8, control_strength=args.pose_strength, creature=True,
+            steps=QUADRUPED_SECOND_STEPS, control_strength=args.pose_strength, creature=True,
             boss=args.boss, quadruped=True, init_image=again, denoise=QUADRUPED_SECOND,
             lora=args.style_lora, lora_strength=args.style_strength)
         raw = client.run(workflow)[0]
