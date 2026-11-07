@@ -72,7 +72,8 @@ def _creature(stills: dict, args, out: Path) -> None:
     for name in names:
         if name not in beast.MOTIONS:
             raise SystemExit(f"creatures have: {', '.join(beast.MOTIONS)}")
-        rows = [[selout(f) for f in beast.render(stills[d], d, name)] for d in ORDER]
+        rows = [[selout(f) for f in beast.render(stills[d], d, name, args.quadruped)]
+                for d in ORDER]
         _save_motion(out, result, name, rows, beast.MOTIONS[name][1])
     index.write_text(json.dumps(result, indent=2))
     print(f"done: {out}")
@@ -112,6 +113,7 @@ def main(argv=None) -> None:
     out = src / "anim"
     out.mkdir(exist_ok=True)
     stills = {d: Image.open(src / "frames" / f"{d}.png").convert("RGBA") for d in ORDER}
+    args.quadruped = bool(meta.get("quadruped"))
     if meta.get("creature"):
         _creature(stills, args, out)
         return

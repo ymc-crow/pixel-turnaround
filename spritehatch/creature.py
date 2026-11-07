@@ -181,6 +181,63 @@ def death(still: Image.Image, view: str) -> list[Image.Image]:
     return out
 
 
+def _legs(solid: np.ndarray):
+    """(top row, floor row, first and last column) of the legs: going up from
+    the feet, the rows where the body splits into separate runs, limited to
+    the width of the body just above (a tail lying low is not a leg)."""
+    ys = np.nonzero(solid.any(1))[0]
+    floor, top = ys.max(), ys.max()
+
+    def runs(row):
+        return int((np.diff(np.concatenate([[0], row.astype(int), [0]])) == 1).sum())
+    while top > ys.min() and runs(solid[top - 1]) >= 2:
+        top -= 1
+    if floor - top < 3:
+        return None
+    above = np.nonzero(solid[max(top - 1, 0)])[0]
+    return top, floor, above.min(), above.max()
+
+
+def stride(still: Image.Image, view: str, amount: float) -> Image.Image:
+    """Move the legs of a four-legged creature. Profiles: front and hind legs
+    swing opposite ways, the feet most (amount in pixels at the feet). Front
+    and back views: one side's feet lift (amount > 0 the left side)."""
+    a = np.asarray(still.convert("RGBA"))
+    found = _legs(a[..., 3] > 0)
+    if found is None or not amount:
+        return still
+    top, floor, x0, x1 = found
+    out = a.copy()
+    zone = a[top:floor + 1, x0:x1 + 1].copy()
+    out[top:floor + 1, x0:x1 + 1] = 0
+    mid = (x1 - x0) / 2
+    for r in range(zone.shape[0]):
+        k = (r + 1) / zone.shape[0]                 # feet move most, hips stay
+        for c in np.nonzero(zone[r, :, 3])[0]:
+            y, x = top + r, x0 + c
+            if view in ("left", "right"):
+                x += round(amount * k * (1 if c > mid else -1))
+            elif (c < mid) == (amount > 0):
+                y -= round(abs(amount) * k)
+            if 0 <= x < a.shape[1] and 0 <= y < a.shape[0]:
+                out[y, x] = zone[r, c]
+    return Image.fromarray(out)
+
+
+def trot(still: Image.Image, view: str) -> list[Image.Image]:
+    """Four-legged walk: legs swing (profiles) or step left and right (front
+    and back) and the body bobs a little, instead of hopping whole."""
+    s = canvas_size(still.width)
+    k = still.width / 48
+    steps = (3, 0, -3, 0)                           # pixels at the feet, 48px frame
+    bob = (0, 1, 0, 1)                              # up while the legs pass
+    beat = (-0.1, 0.05, -0.1, 0.05)
+    tail = (0.1, 0.2, 0.1, 0.2)
+    return [_place(stride(wag(flap(still, view, f), view, t), view, st * k), s,
+                   dy=-b * round(k))
+            for st, b, f, t in zip(steps, bob, beat, tail)]
+
+
 MOTIONS = {
     "idle": (idle, 220, False),
     "walk": (walk, 110, True),
@@ -189,5 +246,9 @@ MOTIONS = {
 }
 
 
-def render(still: Image.Image, direction: str, motion: str) -> list[Image.Image]:
+def render(still: Image.Image, direction: str, motion: str,
+           quadruped: bool = False) -> list[Image.Image]:
+    """Frames of one motion; four-legged creatures walk on their legs."""
+    if motion == "walk" and quadruped:
+        return trot(still.convert("RGBA"), direction)
     return MOTIONS[motion][0](still.convert("RGBA"), direction)

@@ -915,3 +915,30 @@ def test_profiles_are_turned_to_fit_their_guide():
     left, _ = face_profiles([Image.fromarray(cell), Image.fromarray(blank)], ["left", "right"],
                             Image.fromarray(guide))
     assert (np.asarray(left) == np.asarray(ImageOps.mirror(Image.fromarray(cell)))).all()
+
+
+def _four_legs(size=96):
+    a = np.zeros((size, size, 4), np.uint8)
+    a[40:70, 16:80] = (180, 50, 40, 255)                     # body
+    a[30:50, 76:90] = (180, 50, 40, 255)                     # head
+    for x in (20, 32, 62, 72):
+        a[70:95, x:x + 6] = (150, 40, 30, 255)               # four legs
+    return Image.fromarray(a)
+
+
+def test_four_legged_walk_moves_the_legs_not_the_body():
+    from spritehatch.creature import render, stride
+
+    still = _four_legs()
+    a = np.asarray(still)
+    moved = np.asarray(stride(still, "right", 4))
+    assert (moved[:70] == a[:70]).all()                      # body untouched
+    assert not (moved[70:] == a[70:]).all()                  # legs swing
+    feet = lambda img: np.nonzero(img[94, :, 3])[0]
+    assert feet(moved).min() < feet(a).min()                 # hind feet back
+    assert feet(moved).max() > feet(a).max()                 # front feet forward
+    lifted = np.asarray(stride(still, "down", 3))
+    assert (lifted[94, :48, 3] == 0).all() and lifted[94, 48:, 3].any()
+    hop = render(still, "right", "walk")
+    trot = render(still, "right", "walk", quadruped=True)
+    assert len(trot) == len(hop) and all(f.size == hop[0].size for f in trot)

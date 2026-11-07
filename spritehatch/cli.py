@@ -232,6 +232,8 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
             "skeleton": {v: skeletons[v] for v in spec["order"]}}
     if creature:
         meta["creature"] = True             # spritehatch-animate hops it instead
+        if is_quadruped(character):
+            meta["quadruped"] = True        # and walks it on its legs
     if boss:
         meta["body"] = "boss"               # the redraw prompt drops the chibi words
     (out / "sheet.json").write_text(json.dumps(meta, indent=2))
