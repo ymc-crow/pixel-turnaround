@@ -98,17 +98,19 @@ spritehatch-animate out/dragon
 
 **Four legs.** When a creature's description says `four legs`, `four-legged`,
 `quadruped` or `on all fours`, words alone are not enough (the model stands
-dragons and wolves up like people), so it is drawn twice:
+dragons and wolves up like people), so it follows a depth map of a real
+four-legged animal instead of the human skeleton: CC0 3D models (a wolf, and a
+bull for bulky beasts like dragons) rendered once by
+`tools/make_quadruped_guides.py`, profiles seen from a little above, front and
+back turned a little so all four legs show. It is drawn twice:
 
-1. From a gray silhouette of a body on four legs (profiles without head or
-   tail, so the model picks the way it faces), following a rough four-legged
-   depth guide instead of the human skeleton.
+1. From the guide's silhouette in gray.
 2. The profiles are kept; the front and back are painted again from the
-   silhouette in the creature's own colors.
+   silhouette in the creature's own colors (16 steps).
 
-Profiles that come out facing the wrong way are turned round by where the tail
-hangs. A four-legged dragon also gets a heavy dinosaur body in the prompt (the
-word "dragon" alone stands it up). Takes about twice as long.
+Profiles drawn facing the wrong way are turned round to fit the guide, and of
+the two the one closer to the guide is kept. A four-legged dragon also gets a
+heavy dinosaur body in the prompt. Takes about three times as long.
 
 ![wolf](examples/bosses/wolf.png) `giant dire wolf, gray fur, glowing blue eyes, four legs` (seed 4)
 
@@ -254,9 +256,9 @@ Options:
   (squash and stretch), `walk` (a hop), `attack` (a lunge) and `death` (tips
   over). No `--redraw` and no `cast` for them.
 - Creatures move as one piece except for wings and the tail of a profile (no
-  walking legs), and wide wings can still touch the edge of their view. A
-  four-legged dragon's front view is a heavy body on planted front legs that
-  can still read as a stout beast standing up; wolves come out right.
+  walking legs), and wide wings can still touch the edge of their view.
+  Four-legged front and back views are turned a little; a slim wolf can come
+  out looking back over its shoulder, so front and back read swapped.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
