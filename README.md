@@ -102,7 +102,8 @@ dragons and wolves up like people), so it follows a depth map of a real
 four-legged animal instead of the human skeleton: CC0 3D models (a wolf, and a
 bull for bulky beasts like dragons) rendered once by
 `tools/make_quadruped_guides.py`, profiles seen from a little above, front and
-back turned a little so all four legs show. It is drawn twice:
+back turned a little for bulky bodies so all four legs show (straight on for
+slim ones). It is drawn twice:
 
 1. From the guide's silhouette in gray.
 2. The profiles are kept; the front and back are painted again from the
@@ -112,7 +113,13 @@ Profiles drawn facing the wrong way are turned round to fit the guide, and of
 the two the one closer to the guide is kept. A four-legged dragon also gets a
 heavy dinosaur body in the prompt. Takes about three times as long.
 
+Four-legged creatures walk on their legs: in profile the front and hind legs
+swing opposite ways, from the front and back the left and right legs lift in
+turn, and the body only bobs.
+
 ![wolf](examples/bosses/wolf.png) `giant dire wolf, gray fur, glowing blue eyes, four legs` (seed 4)
+
+![wolf motions](examples/bosses/wolf.gif)
 
 ## Motions
 
@@ -257,8 +264,8 @@ Options:
   over). No `--redraw` and no `cast` for them.
 - Creatures move as one piece except for wings and the tail of a profile (no
   walking legs), and wide wings can still touch the edge of their view.
-  Four-legged front and back views are turned a little; a slim wolf can come
-  out looking back over its shoulder, so front and back read swapped.
+  Four-legged creatures move their legs only in `walk`; `attack` and `death`
+  move the whole body.
 - `death` frames halfway down (tipping 30-65 degrees) look rougher than the
   rest.
 
