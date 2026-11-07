@@ -1,7 +1,7 @@
 """Render the four-legged depth guides in spritehatch/guides/ from 3D models.
 
     uv pip install trimesh
-    python tools/make_quadruped_guides.py wolf.glb lean
+    python tools/make_quadruped_guides.py wolf.glb lean      # front and back straight on
     python tools/make_quadruped_guides.py bull.glb heavy
 
 Models: Quaternius "Ultimate Animated Animals" (CC0), e.g. from
@@ -25,6 +25,10 @@ SIZE = 512
 # 45 degrees above, the back rises up the picture and it sits up. Turned a
 # little, as game sprites draw animals, the body and all four legs show.
 VIEWS = {"down": (25, 30), "right": (90, 20), "left": (-90, 20), "up": (205, 30)}
+# A slim animal turned like that reads as looking back over its shoulder (front
+# and back swap), and straight on it does stand on four legs, so lean bodies
+# keep the front and back straight.
+STRAIGHT = {"down": (0, 30), "right": (90, 20), "left": (-90, 20), "up": (180, 30)}
 
 
 def _project(vertices: np.ndarray, yaw: float, pitch: float) -> np.ndarray:
@@ -59,8 +63,8 @@ def _rasterize(pts: np.ndarray, faces: np.ndarray, size: int) -> np.ndarray:
     return zbuf
 
 
-def render(mesh: trimesh.Trimesh) -> dict[str, Image.Image]:
-    views = {v: _project(mesh.vertices, yaw, pitch) for v, (yaw, pitch) in VIEWS.items()}
+def render(mesh: trimesh.Trimesh, angles: dict = VIEWS) -> dict[str, Image.Image]:
+    views = {v: _project(mesh.vertices, yaw, pitch) for v, (yaw, pitch) in angles.items()}
     # One scale for every view: the longest extent (the profile) fills the image.
     span = max(np.ptp(p[:, :2], axis=0).max() for p in views.values())
     s = (SIZE - 4) / span
@@ -81,6 +85,7 @@ def render(mesh: trimesh.Trimesh) -> dict[str, Image.Image]:
 if __name__ == "__main__":
     model, name = sys.argv[1], sys.argv[2]
     folder = Path(__file__).resolve().parent.parent / "spritehatch" / "guides"
-    for view, img in render(trimesh.load(model, force="mesh")).items():
+    angles = STRAIGHT if name == "lean" else VIEWS
+    for view, img in render(trimesh.load(model, force="mesh"), angles).items():
         img.save(folder / f"{name}_{view}.png", optimize=True)
         print(folder / f"{name}_{view}.png")
