@@ -7,6 +7,7 @@ ControlNet can read it.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -173,85 +174,30 @@ def pose_sheet(width: int, height: int, views, body: str = "chibi") -> Image.Ima
 
 
 # Four-legged creatures: the human skeleton stands them up, and words alone
-# ("four legs") do too, so the model gets a rough depth map of a quadruped
-# instead (nearer is brighter): a long low body on four legs, head and tail.
-# Shapes are (part, kind, brightness, coords 0..1 inside one cell); a side
-# view faces right.
-_QUAD_SIDE = [
-    ("tail", "line", 90, [(0.30, 0.66), (0.14, 0.72), (0.08, 0.86)], 0.035),   # tail
-    ("body", "rect", 110, (0.33, 0.68, 0.39, 0.92)),                           # far hind leg
-    ("body", "rect", 110, (0.63, 0.68, 0.69, 0.92)),                           # far front leg
-    ("body", "ellipse", 200, (0.24, 0.56, 0.78, 0.76)),                        # body
-    ("neck", "line", 210, [(0.70, 0.62), (0.78, 0.50)], 0.06),                 # neck
-    ("head", "ellipse", 230, (0.70, 0.42, 0.90, 0.54)),                        # head
-    ("body", "rect", 230, (0.28, 0.68, 0.35, 0.93)),                           # near hind leg
-    ("body", "rect", 230, (0.58, 0.68, 0.65, 0.93)),                           # near front leg
-]
-_QUAD_FRONT = [
-    ("body", "ellipse", 120, (0.22, 0.56, 0.78, 0.78)),                        # body behind, wide
-    ("body", "rect", 110, (0.34, 0.72, 0.42, 0.90)),                           # hind legs, far
-    ("body", "rect", 110, (0.58, 0.72, 0.66, 0.90)),
-    ("body", "ellipse", 190, (0.30, 0.58, 0.70, 0.80)),                        # chest
-    ("body", "rect", 230, (0.30, 0.74, 0.39, 0.93)),                           # front legs, short
-    ("body", "rect", 230, (0.61, 0.74, 0.70, 0.93)),
-    ("head", "ellipse", 250, (0.38, 0.50, 0.62, 0.70)),                        # head, low and near
-]
-_QUAD_BACK = [
-    ("body", "rect", 110, (0.30, 0.70, 0.38, 0.90)),                           # front legs, far
-    ("body", "rect", 110, (0.62, 0.70, 0.70, 0.90)),
-    ("head", "ellipse", 150, (0.40, 0.44, 0.60, 0.58)),                        # head, behind
-    ("body", "ellipse", 200, (0.28, 0.54, 0.72, 0.80)),                        # body
-    ("body", "rect", 230, (0.36, 0.70, 0.44, 0.93)),                           # hind legs
-    ("body", "rect", 230, (0.56, 0.70, 0.64, 0.93)),
-    ("tail", "line", 240, [(0.50, 0.70), (0.50, 0.86), (0.58, 0.92)], 0.035),  # tail
-]
+# ("four legs") do too, so the model gets a depth map of a real four-legged
+# animal instead (nearer is brighter), seen from a little above like game
+# sprites show animals. Rendered once from CC0 3D models by
+# tools/make_quadruped_guides.py: "lean" is a wolf, "heavy" a bull. (Hand-drawn
+# ellipses here before let a dragon's front view stand up: the hind legs hid
+# behind the front ones.)
+GUIDES = Path(__file__).parent / "guides"
+QUAD_BODIES = ("lean", "heavy")
 
 
-def _quad_shapes(view: str):
-    if view == "down":
-        return _QUAD_FRONT
-    if view == "up":
-        return _QUAD_BACK
-    if view == "right":
-        return _QUAD_SIDE
-    if view == "left":
-        flip = lambda x: 1 - x
-        out = []
-        for part, kind, shade, c, *rest in _QUAD_SIDE:
-            if kind == "line":
-                out.append((part, kind, shade, [(flip(x), y) for x, y in c], *rest))
-            else:
-                x0, y0, x1, y1 = c
-                out.append((part, kind, shade, (flip(x1), y0, flip(x0), y1)))
-        return out
-    raise ValueError(f"no four-legged guide for view {view}")
-
-
-def quadruped_sheet(width: int, height: int, views, parts=None) -> Image.Image:
-    """Black canvas with one rough four-legged depth shape per view. `parts`
-    keeps only those parts (body, head, neck, tail), or maps a view to them."""
+def quadruped_sheet(width: int, height: int, views, body: str = "lean") -> Image.Image:
+    """Black canvas with the four-legged depth guide of each view, all at one
+    scale, feet near the bottom. The profile spans 72% of a cell: room for
+    wings (at 92% a dragon's wings were cut at the cell edge)."""
     img = Image.new("RGB", (width, height), "black")
-    draw = ImageDraw.Draw(img)
     cell = width / len(views)
     for i, view in enumerate(views):
-        at = lambda x, y, i=i: (i * cell + x * cell, y * height)
-        keep = parts.get(view) if isinstance(parts, dict) else parts
-        for part, kind, shade, c, *rest in _quad_shapes(view):
-            if keep is not None and part not in keep:
-                continue
-            color = (shade,) * 3
-            if kind == "line":
-                draw.line([at(x, y) for x, y in c], fill=color,
-                          width=max(1, round(rest[0] * cell)), joint="curve")
-            else:
-                box = [*at(c[0], c[1]), *at(c[2], c[3])]
-                (draw.ellipse if kind == "ellipse" else draw.rectangle)(box, fill=color)
+        guide = Image.open(GUIDES / f"{body}_{view}.png").convert("L")
+        k = 0.72 * cell / guide.width
+        g = guide.resize((round(guide.width * k), round(guide.height * k)), Image.LANCZOS)
+        x = round(i * cell + (cell - g.width) / 2)
+        y = round(0.94 * height - g.height)
+        img.paste(Image.merge("RGB", (g, g, g)), (x, y))
     return img
-
-
-# The start picture's profiles have no head, neck or tail: when those point one
-# way and the model wants the other, it paints a head at both ends.
-START_PARTS = {"left": {"body"}, "right": {"body"}}
 
 
 def quadruped_start(guide: Image.Image, color=(150, 150, 150)) -> Image.Image:

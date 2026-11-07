@@ -8,7 +8,7 @@ requires-python = ">=3.9"
 dependencies = ["pillow>=10", "numpy>=1.24"]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "ruff", "trimesh"]
 
 [project.scripts]
 spritehatch = "spritehatch.cli:main"
@@ -16,6 +16,9 @@ spritehatch-animate = "spritehatch.animate:main"
 
 [tool.setuptools]
 packages = ["spritehatch"]
+
+[tool.setuptools.package-data]
+spritehatch = ["guides/*.png"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

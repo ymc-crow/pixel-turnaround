@@ -218,7 +218,8 @@ CREATURE_BOSS_PROMPT = (
 QUADRUPED_WORDS = (
     " Quadruped: it stands on all four legs like a lion or a horse, long horizontal body "
     "with the belly parallel to the ground, all four feet on the ground, never standing "
-    "upright on its hind legs."
+    "upright on its hind legs. The front and back views are turned a little to one side "
+    "and seen from slightly above, so the body and all four legs are visible."
 )
 
 
