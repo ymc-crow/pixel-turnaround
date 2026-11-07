@@ -101,14 +101,32 @@ def _tail_side(cell: Image.Image) -> int:
     return 0 if abs(left - right) < 0.05 else (-1 if left > right else 1)
 
 
-def face_profiles(cells: list[Image.Image], views: list[str]) -> list[Image.Image]:
-    """Four-legged profiles come out facing either way: mirror the ones whose
-    tail is on the side their head should be."""
-    out = []
+def _fit(drawn: np.ndarray, want: np.ndarray) -> float:
+    """Overlap over union of two masks."""
+    return (drawn & want).sum() / max((drawn | want).sum(), 1)
+
+
+def face_profiles(cells: list[Image.Image], views: list[str],
+                  guide: Image.Image | None = None) -> list[Image.Image]:
+    """Four-legged profiles can come out facing either way: mirror the ones
+    that fit their guide silhouette better mirrored (the head and tail make
+    it lopsided). Without a guide, the tail tells (a wolf's raised tail and
+    wide stance fooled that, so the guide comes first)."""
+    if guide is not None:
+        g = np.asarray(guide.convert("L").resize((sum(c.width for c in cells),
+                                                  cells[0].height))) > 0
+    out, x = [], 0
     for cell, view in zip(cells, views):
-        tail = _tail_side(cell) if view in ("left", "right") else 0
-        wrong = (view == "left" and tail < 0) or (view == "right" and tail > 0)
+        wrong = False
+        if view in ("left", "right"):
+            if guide is not None:
+                fg, want = ~background_mask(cell), g[:, x:x + cell.width]
+                wrong = _fit(fg[:, ::-1], want) > _fit(fg, want) + 0.02
+            else:
+                tail = _tail_side(cell)
+                wrong = (view == "left" and tail < 0) or (view == "right" and tail > 0)
         out.append(ImageOps.mirror(cell) if wrong else cell)
+        x += cell.width
     return out
 
 
@@ -142,9 +160,7 @@ def guide_match(cells: list[Image.Image], guide: Image.Image, views: list[str]) 
     g = np.asarray(guide.convert("L").resize((sum(c.width for c in cells), cells[0].height))) > 0
     out, x = {}, 0
     for cell, view in zip(cells, views):
-        fg = ~background_mask(cell)
-        want = g[:, x:x + cell.width]
-        out[view] = (fg & want).sum() / max((fg | want).sum(), 1)
+        out[view] = _fit(~background_mask(cell), g[:, x:x + cell.width])
         x += cell.width
     return out
 
@@ -184,9 +200,9 @@ def build(raw: Image.Image, mode: str, size: int, colors: int, out: Path,
         snapped.info["grid"] = (1, 0, 1, 0)
         cells = split_cells(raw, count)
         if creature and is_quadruped(character):
-            cells = face_profiles(cells, spec["draw"])
-            scores = guide_match(cells, quadruped_sheet(raw.width, raw.height, spec["draw"],
-                                                        quadruped_body(character)), spec["draw"])
+            guide = quadruped_sheet(raw.width, raw.height, spec["draw"], quadruped_body(character))
+            cells = face_profiles(cells, spec["draw"], guide)
+            scores = guide_match(cells, guide, spec["draw"])
         sprites = downscale_sprites(cells, colors=colors,
                                     size=size or (BOSS_SIZE if boss else 48), glow=boss)
     drawn = dict(zip(spec["draw"], sprites))

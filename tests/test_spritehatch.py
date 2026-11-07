@@ -900,3 +900,18 @@ def test_the_profile_closer_to_the_guide_is_kept():
     assert scores["left"] > scores["right"]
     big = {"left": Image.new("RGBA", (4, 4)), "right": Image.new("RGBA", (4, 4), (1, 1, 1, 255))}
     assert _pick_sides({"left": "right"}, big, scores) == {"right": "left"}
+
+
+def test_profiles_are_turned_to_fit_their_guide():
+    from spritehatch.cli import face_profiles
+
+    guide = np.zeros((100, 200, 3), np.uint8)
+    guide[50:90, 20:80] = 200                    # left view: body
+    guide[30:50, 10:30] = 200                    # head up on the left
+    cell = np.full((100, 100, 3), 255, np.uint8)
+    cell[50:90, 20:80] = 80
+    cell[30:50, 70:90] = 80                      # drawn with the head on the right
+    blank = np.full((100, 100, 3), 255, np.uint8)
+    left, _ = face_profiles([Image.fromarray(cell), Image.fromarray(blank)], ["left", "right"],
+                            Image.fromarray(guide))
+    assert (np.asarray(left) == np.asarray(ImageOps.mirror(Image.fromarray(cell)))).all()
